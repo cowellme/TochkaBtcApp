@@ -1,0 +1,211 @@
+﻿@page "/settings"
+@inject ApplicationContext ApplicationContext
+@rendermode InteractiveServer
+
+<PageTitle>Настройки</PageTitle>
+
+<AuthorizeView>
+    <Authorized>
+        @if (authenticatotrTask == null)
+        {
+            <p>Загрузка...</p>
+        }
+        else
+        {
+
+            if (!string.IsNullOrEmpty(_message))
+            {
+                <div style="position: absolute; 
+                            width: max-content; 
+                            height: max-content; 
+                            background: green; 
+                            padding: 10px; 
+                            border-radius: 5px; left: 50%;
+                            transform: translate(-50%, 0)">
+                    <span style="color: aliceblue">@_message</span>
+                </div>
+            }
+
+            <div class="container-md w-50">
+                <h3 class="mb-5">Данные аккаунта</h3>
+                <div @onclick="ToggleBinanceVisibility" style="cursor: pointer;">
+                    <p class="h5 mb-3">Binance @(isBinanceVisible ? "↥" : "↧")</p>
+                </div>
+                <div class="@(isBinanceVisible ? "expanded" : "collapsed") binance-block">
+                    <div class="mb-5">
+                        <label class="form-label">Открытый ключ:</label>
+                        <input type="text" @bind="ApiBinance" class="form-control input" />
+                        <label class="form-label">Секретный ключ:</label>
+                        <input type="text" @bind="SecretBinance" class="form-control input" />
+                    </div>
+                </div>
+
+                <div @onclick="ToggleBingxVisibility" style="cursor: pointer;">
+                    <p class="h5 mb-3">Bingx @(isBingxVisible ? "↥" : "↧")</p>
+                </div>
+                <div class="@(isBingxVisible ? "expanded" : "collapsed") binance-block">
+                    <div class="mb-5">
+                        <label class="form-label">Открытый ключ:</label>
+                        <input type="text" @bind="ApiBingx" class="form-control input" />
+                        <label class="form-label">Секретный ключ:</label>
+                        <input type="text" @bind="SecretBingx" class="form-control input" />
+                    </div>
+                </div>
+
+                <div @onclick="ToggleBitGetVisibility" style="cursor: pointer;">
+                    <p class="h5 mb-3">OKX @(isBitGetVisible ? "↥" : "↧")</p>
+                </div>
+                <div class="@(isBitGetVisible ? "expanded" : "collapsed") binance-block">
+                    <div class="mb-5">
+                        <label class="form-label">Открытый ключ:</label>
+                        <input type="text" @bind="ApiOKX" class="form-control input" />
+                        <label class="form-label">Секретный ключ:</label>
+                        <input type="text" @bind="SecretOKX" class="form-control input" />
+                    </div>
+                </div>
+
+                <button class="btn btn-primary save-button" @onclick="SaveSettings">
+                    <i class="fas fa-save me-2"></i> Сохранить
+                </button>
+            </div>
+        }
+    </Authorized>
+</AuthorizeView>
+
+
+
+<style>
+    .save-button {
+    background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .save-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .save-button:active {
+    transform: translateY(0);
+    }
+
+    .input {
+    font-weight: 600;
+    background: #33373f;
+    border-color: #12242e;
+    color: #c8c8c7;
+    }
+
+    .binance-block {
+    transition: all 0.3s ease;
+    overflow: hidden;
+    }
+
+    .collapsed {
+    max-height: 0;
+    opacity: 0;
+    margin-bottom: 0 !important;
+    }
+
+    .expanded {
+    max-height: 500px;
+    /* Достаточно для содержимого */
+    opacity: 1;
+    }
+</style>
+
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticatotrTask { get; set; }
+
+    private string _message = string.Empty; 
+    string pas = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var ath = await authenticatotrTask;
+
+        if (ath.User.Identity != null)
+        {
+            var user = ApplicationContext.Users.FirstOrDefault(x => x.Name == ath.User.Identity.Name);
+            if (user != null)
+            {
+                ApiBinance = user.ApiBinance;
+                SecretBinance = user.SecretBinance;
+                ApiBingx = user.ApiBingx;
+                SecretBingx = user.SecretBingx;
+                ApiOKX = user.ApiOKX;
+                SecretOKX = user.SecretOKX;
+            }
+        }
+    }
+
+    private async Task SaveSettings()
+    {
+        try
+        {
+            var ath = await authenticatotrTask;
+
+            if (ath.User.Identity != null)
+            {
+                var user = ApplicationContext.Users.FirstOrDefault(x => x.Name == ath.User.Identity.Name);
+
+                if (user != null)
+                {
+                    user.ApiBinance = ApiBinance;
+                    user.SecretBinance = SecretBinance;
+                    user.ApiBingx = ApiBingx;
+                    user.SecretBingx = SecretBingx;
+                    user.ApiOKX = ApiOKX;
+                    user.SecretOKX = SecretOKX;
+                    ApplicationContext.SaveChanges();
+                }
+            }
+            
+            await ViewMessage("Сохраненно!");
+        }
+        catch (Exception e)
+        {
+            await ViewMessage(e.Message);
+        }
+    }
+
+    private async Task ViewMessage(string text)
+    {
+        _message = text;
+        await Task.Delay(3000);
+        _message = string.Empty;
+    }
+
+    private string? ApiBinance { get; set; }
+    private string? SecretBinance { get; set; }
+
+    private string? ApiBingx { get; set; }
+    private string? SecretBingx { get; set; }
+
+    private string? ApiOKX { get; set; }
+    private string? SecretOKX { get; set; }
+
+    private void ToggleBinanceVisibility()
+    {
+        isBinanceVisible = !isBinanceVisible;
+    }
+    private void ToggleBitGetVisibility()
+    {
+        isBitGetVisible = !isBitGetVisible;
+    }
+    private void ToggleBingxVisibility()
+    {
+        isBingxVisible = !isBingxVisible;
+    }
+
+    public bool isBinanceVisible = false;
+    public bool isBingxVisible = false;
+    public bool isBitGetVisible = false;
+}

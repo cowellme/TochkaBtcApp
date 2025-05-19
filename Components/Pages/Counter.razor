@@ -1,0 +1,8 @@
+﻿@page "/ultra-secret-page"
+@inject ApplicationContext ApplicationContext
+
+<PageTitle>ultra-secret-page</PageTitle>
+<button @onclick="() => ApplicationContext.Reset()">
+    Reset Database
+</button>
+

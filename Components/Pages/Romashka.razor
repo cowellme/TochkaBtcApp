@@ -1,0 +1,218 @@
+﻿@page "/romashka"
+@using TochkaBtcApp.Models
+@rendermode InteractiveServer
+@inject IHttpContextAccessor HttpContextAccessor
+@inject ApplicationContext ApplicationContext
+
+
+
+@if (hasError)
+{
+    <div class="alert alert-danger">Произошла ошибка. Попробуйте обновить страницу.</div>
+}
+else
+{
+    if (!string.IsNullOrEmpty(_message))
+    {
+        <div style="position: absolute; 
+                    width: max-content; 
+                    height: max-content; 
+                    background: green; 
+                    padding: 10px; 
+                    border-radius: 5px; left: 50%;
+                    transform: translate(-50%, 0)">
+            <span style="color: aliceblue">@_message</span>
+        </div>
+    }
+    <div class="container-sm w-50">
+        <h3 class="mb-3">Romashka</h3>
+        <p class="h5 mb-5">@_user?.Name</p>
+
+        <div class="mb-3">
+            <label class="form-label">1. Количество свечей для стопа, шт.</label>
+            <input type="text" class="form-control input" value="@_candlesCount" @onchange="CountCandlesChanger" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">2. Отступ от минимума, %</label>
+            <input type="text" class="form-control input" value="@_offsetMinimal" @onchange="CountStopLossChanger" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">3. Риск к профиту, кф</label>
+            <input type="text" class="form-control input" value="@_riskRatio" @onchange="CountRiskRatioChanger" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">4. Риск на сделку, $</label>
+            <input type="text" class="form-control input" value="@_risk" @onchange="CountProfitChanger" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">5. Выбор ТФ (таймфрейм)</label>
+            <select class="form-select input" @bind="_selectedTimeFrame">
+                <option selected disabled>Выберите таймфрейм</option>
+                <option value="5m">5 минут</option>
+            </select>
+        </div>
+
+        <button class="btn btn-primary save-button mb-3" @onclick="() => SaveConfig()">
+            <i class="fas fa-save me-2"></i> Сохранить
+        </button>
+
+        @if (SavedConfigs.Count > 0)
+        {
+            foreach (var config in SavedConfigs)
+            {
+                <div class="card mb-2 p-1" style="background: #0c0c0c">
+                    <div class="card-body">
+                        <span class=""><b>Кол-во свечей:</b> @config.CandlesCount</span>
+                        <br>
+                        <span class=""><b>Отступ от мин.:</b> @config.OffsetMinimal %</span>
+                        <br>
+                        <span class=""><b>Риск на сделку:</b> @config.Risk $</span>
+                        <br>
+                        <span class=""><b>Коэф. риска: </b>@config.RiskRatio</span>
+                    </div>
+                    <div class="card-header h4 d-flex justify-content-between align-items-center">
+                        <button class="btn btn-danger btn-sm" @onclick="() => DeleteConfig(config.Id, config.Name)">Удалить</button>
+                    </div>
+                </div>  
+            }
+        }
+    </div>
+
+    <style>
+        .save-button {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+            .save-button:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+            }
+
+            .save-button:active {
+                transform: translateY(0);
+            }
+
+        .input {
+            font-weight: 600;
+            background: #33373f;
+            border-color: #12242e;
+            color: #c8c8c7;
+        }
+    </style>
+
+
+}
+
+
+
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticatotrTask { get; set; }
+
+    private string _message = string.Empty;
+
+    private string _selectedTimeFrame = "5m";
+    private int _candlesCount = 5;
+    private double _offsetMinimal = 0.002;
+    private double _riskRatio = 3;
+    private double _risk = 100;
+    private AppUser? _user = null;
+
+    private List<Config> SavedConfigs = new List<Config>();
+
+    private void CountCandlesChanger(ChangeEventArgs obj)
+    {
+        var value = obj.Value?.ToString();
+        if (int.TryParse(value, out var result)) _candlesCount = result;
+    }
+    private void CountStopLossChanger(ChangeEventArgs obj)
+    {
+        var value = obj.Value?.ToString();
+        if (double.TryParse(value, out var result)) _offsetMinimal = result;
+    }
+    private void CountRiskRatioChanger(ChangeEventArgs obj)
+    {
+        var value = obj.Value?.ToString();
+        if (double.TryParse(value, out var result)) _offsetMinimal = result;
+    }
+    private void CountProfitChanger(ChangeEventArgs obj)
+    {
+        var value = obj.Value?.ToString();
+        if (double.TryParse(value, out var result)) _offsetMinimal = result;
+    }
+
+    private async Task ViewMessage(string text)
+    {
+        _message = text;
+        await Task.Delay(1000);
+        _message = string.Empty;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var ath = await authenticatotrTask;
+            var user = ApplicationContext.Users.FirstOrDefault(x => ath.User.Identity != null
+                                                                    && x.Name == ath.User.Identity.Name) ?? new AppUser();
+
+            SavedConfigs = ApplicationContext.GetConfigsByName(user.Name) ?? new List<Config>();
+        }
+        catch (Exception e)
+        {
+            Models.Error.Log(e);
+            hasError = true;
+        }
+    }
+
+    private async void SaveConfig()
+    {
+        try
+        {
+            var ath = await authenticatotrTask;
+            var user = ApplicationContext.Users.FirstOrDefault(x => ath.User.Identity != null 
+                                                                    && x.Name == ath.User.Identity.Name) ?? new AppUser();
+
+            if (string.IsNullOrEmpty(user.Name)) return;
+            var config = new Config
+            {
+                Name = user.Name,
+                CandlesCount = _candlesCount,
+                TimeFrame = _selectedTimeFrame,
+                RiskRatio = _riskRatio, 
+                OffsetMinimal = _offsetMinimal,
+                Risk = _risk
+            };
+
+            ApplicationContext.SaveConfig(config);
+            hasError = false;
+            SavedConfigs = ApplicationContext.GetConfigsByName(user.Name) ?? new List<Config>();
+            await ViewMessage("Конфиг сохранен !");
+        }
+        catch (Exception e)
+        {
+            Models.Error.Log(e);
+            await ViewMessage(e.Message);
+            hasError = true;
+        }
+    }
+
+    private bool hasError;
+
+    private async Task DeleteConfig(int configId, string configName)
+    {
+        await ApplicationContext.DeleteConfig(configId, configName);
+        ViewMessage("Удаленно !");
+        SavedConfigs = ApplicationContext.GetConfigsByName(configName) ?? new List<Config>();
+    }
+
+}

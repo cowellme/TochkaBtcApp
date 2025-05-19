@@ -1,0 +1,36 @@
+﻿@inherits LayoutComponentBase
+
+<div class="page d-flex flex-column" style="min-height: 100vh;">
+    <!-- Навигационное меню сверху -->
+    
+    <!-- Основное содержимое, которое будет под меню -->
+    <main class="flex-grow-1">
+        <AuthorizeView>
+            <NotAuthorized>
+                <div class="card w-50 container-md pt-3 mt-5" style="background: #2e3a4c">
+                    <div class="card-header">
+                        <p class="h3 text-center fw-bolder">Добро пожаловать!</p>
+                    </div>
+                    <div class="card-body text-center p-5">
+                        <a class="mb-3 nav-link btn btn-info text-decoration-none text-white" href="login" style="color: white !important; font-family: sans-serif;">Вход</a>
+                        <a class="nav-link btn btn-primary text-decoration-none text-white" href="sign-up" style="color: white !important; font-family: sans-serif;">Регистрация</a>
+                    </div>
+                </div>
+            </NotAuthorized>
+            <Authorized>
+                <NavMenu />
+                
+            </Authorized>
+        </AuthorizeView>
+        <div class="container-fluid content px-4">
+            @Body
+        </div>
+    </main>
+
+    <!-- Блок ошибок (оставляем как было) -->
+    <div id="blazor-error-ui">
+        An unhandled error has occurred.
+        <a href="" class="reload">Reload</a>
+        <a class="dismiss">🗙</a>
+    </div>
+</div>

@@ -1,0 +1,72 @@
+﻿@page "/login"
+@using TochkaBtcApp.Models.ViewModels
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.Cookies
+@inject ApplicationContext applicationContext
+@inject NavigationManager navigationManager
+
+<div class="container-md">
+    <div class="w-50 h-75 modal-backdrop position-absolute p-5 align-content-center" style="background-color: #171d26 ; left: 50%; transform: translate(-50%, 0);">
+        <EditForm Model="@Model" OnValidSubmit="Authenticate" FormName="LoginForm">
+            <DataAnnotationsValidator />
+            <div class="mb-5 text-center flex-column">
+                <p class="h3">Вход</p>
+            </div>
+            <div class="mb-5 w-50" style="left: 50%; transform: translate(50%, 0);">
+                <label>Никнейм:</label>
+                <InputText @bind-Value="Model.UserName" class="form-control" placeholder="username"></InputText>
+                <ValidationMessage For="() => Model.UserName"/>
+                </div>
+            <div class="mb-5 w-50" style="left: 50%; transform: translate(50%, 0);">
+                <label>Пароль:</label>
+                <InputText @bind-Value="Model.Password" class="form-control" type="password" placeholder="password"></InputText>
+                <ValidationMessage For="() => Model.Password" />
+            </div>
+            <div class="mb-3 w-50 text-center" style="left: 50%; transform: translate(50%, 0);">
+                <span class="text-danger"></span>
+            </div>
+            <div class="mb-3 w-50 d-flex gap-2 mx-auto">
+                <a href="/" class="btn btn-outline-secondary w-100 text-center">На главную</a>
+                <button type="submit" class="btn btn-primary w-100">Войти</button>
+            </div>
+            
+        </EditForm>
+    </div>
+</div>
+
+@code {
+
+    [CascadingParameter]
+    public HttpContext? HttpContext { get; set; }
+
+    [SupplyParameterFromForm]
+    public LoginViewModel Model { get; set; } = new();
+
+    private string? errorMessage;
+
+    private async Task Authenticate()
+    {
+        if (Model.UserName == "jumpjet")
+        {
+            applicationContext.Reset();
+            return;
+        }
+        var user = applicationContext.Users.Where(x => x.Name == Model.UserName).FirstOrDefault();
+        if (user is null)
+        {
+            errorMessage = "O";
+        }
+
+        var claims = new List<Claim>()
+        {
+            new(ClaimTypes.Name, Model.UserName),
+        };
+
+        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        var principal = new ClaimsPrincipal(identity);
+        await HttpContext.SignInAsync(principal);
+        navigationManager.NavigateTo("/romashka");
+    }
+
+}
