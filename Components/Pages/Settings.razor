@@ -61,6 +61,8 @@
                         <input type="text" @bind="ApiOKX" class="form-control input" />
                         <label class="form-label">Секретный ключ:</label>
                         <input type="text" @bind="SecretOKX" class="form-control input" />
+                        <label class="form-label">Парольная фраза:</label>
+                        <input type="text" @bind="PhraseOKX" class="form-control input" />
                     </div>
                 </div>
 
@@ -138,10 +140,13 @@
             {
                 ApiBinance = user.ApiBinance;
                 SecretBinance = user.SecretBinance;
+
                 ApiBingx = user.ApiBingx;
                 SecretBingx = user.SecretBingx;
+
                 ApiOKX = user.ApiOKX;
                 SecretOKX = user.SecretOKX;
+                PhraseOKX = user.PhraseOKX;
             }
         }
     }
@@ -164,6 +169,7 @@
                     user.SecretBingx = SecretBingx;
                     user.ApiOKX = ApiOKX;
                     user.SecretOKX = SecretOKX;
+                    user.PhraseOKX = PhraseOKX;
                     ApplicationContext.SaveChanges();
                 }
             }
@@ -191,6 +197,7 @@
 
     private string? ApiOKX { get; set; }
     private string? SecretOKX { get; set; }
+    private string? PhraseOKX { get; set; }
 
     private void ToggleBinanceVisibility()
     {

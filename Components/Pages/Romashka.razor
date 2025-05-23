@@ -12,8 +12,18 @@
 }
 else
 {
+    if (!string.IsNullOrEmpty(_action))
+    {
+        <div style="position: absolute; width: max-content; height: max-content; background: green; padding: 10px; border-radius: 5px; left: 50%; transform: translate(-50%, 0)">
+            <p class="h-5">Перейдите по ссылке!</p>
+            <a style="color: aliceblue" target="_blank" href="https://t.me/RomashkaCryptoBot?start=@_action">Перейти</a>
+        </div>
+    }
+
     if (!string.IsNullOrEmpty(_message))
     {
+        //https://t.me/RomashkaCryptoBot?start=
+        //https://t.me/bubvpn_bot?start=ref_
         <div style="position: absolute; 
                     width: max-content; 
                     height: max-content; 
@@ -119,6 +129,7 @@ else
     private Task<AuthenticationState> authenticatotrTask { get; set; }
 
     private string _message = string.Empty;
+    private string _action = string.Empty;
 
     private string _selectedTimeFrame = "5m";
     private int _candlesCount = 5;
@@ -142,12 +153,12 @@ else
     private void CountRiskRatioChanger(ChangeEventArgs obj)
     {
         var value = obj.Value?.ToString();
-        if (double.TryParse(value, out var result)) _offsetMinimal = result;
+        if (double.TryParse(value, out var result)) _riskRatio = result;
     }
     private void CountProfitChanger(ChangeEventArgs obj)
     {
         var value = obj.Value?.ToString();
-        if (double.TryParse(value, out var result)) _offsetMinimal = result;
+        if (double.TryParse(value, out var result)) _risk = result;
     }
 
     private async Task ViewMessage(string text)
@@ -179,8 +190,18 @@ else
         try
         {
             var ath = await authenticatotrTask;
-            var user = ApplicationContext.Users.FirstOrDefault(x => ath.User.Identity != null 
+            var user = new ApplicationContext().Users.FirstOrDefault(x => ath.User.Identity != null 
                                                                     && x.Name == ath.User.Identity.Name) ?? new AppUser();
+
+            if (!user.IsTelegram)
+            {
+                _action = user.Hash;
+                return;
+            }
+            else
+            {
+                _action = string.Empty;
+            }
 
             if (string.IsNullOrEmpty(user.Name)) return;
             var config = new Config

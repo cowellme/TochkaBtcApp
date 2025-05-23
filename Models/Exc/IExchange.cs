@@ -1,267 +1,109 @@
-﻿using Binance.Net.Clients;
-using Binance.Net.Enums;
-using Binance.Net.Interfaces;
-using CryptoExchange.Net.Authentication;
-using TochkaBtcApp.Contollers;
+﻿using Binance.Net.Enums;
+using CryptoExchange.Net.Attributes;
 
 namespace TochkaBtcApp.Models.Exc
 {
     public interface IExchange
     {
+        public void GetSignal(GlobalKlineInterval interval);
     }
 
-    public class Binance : IExchange
+    public enum GlobalKlineInterval : int
     {
-        private static string _sideDefault = "LONG";
-        private static string _symbolDefault = "BTCUSDT";
-        private static KlineInterval _klineIntervalDefault = KlineInterval.FiveMinutes;
-        public static void GetSignal()
-        {
-            var configs = ApplicationContext.GetConfigs();
-            var users = ApplicationContext.GetUsers();
+        /// <summary>
+        /// 1m
+        /// </summary>
+        [Map("1m")]
+        OneMinute = 60,
 
-            if (configs == null) return;
-            if (users == null) return;
+        /// <summary>
+        /// 3m
+        /// </summary>
+        [Map("3m")]
+        ThreeMinutes = 60 * 3,
 
-            foreach (var config in configs)
-            {
-                var name = config.Name;
-                var user = users.FirstOrDefault(x => x.Name == name);
-                if (user != null)
-                {
-                    var api = user.ApiBinance;
-                    var secret = user.SecretBinance;
+        /// <summary>
+        /// 5m
+        /// </summary>
+        [Map("5m")]
+        FiveMinutes = 60 * 5,
 
-                    var client = new BinanceRestClient();
-                    client.SetApiCredentials(new ApiCredentials(api, secret));
+        /// <summary>
+        /// 15m
+        /// </summary>
+        [Map("15m")]
+        FifteenMinutes = 60 * 15,
 
-                    Buy(client, config);
-                }
-            }
-        }
+        /// <summary>
+        /// 30m
+        /// </summary>
+        [Map("30m")]
+        ThirtyMinutes = 60 * 30,
 
-        private static async void Buy(BinanceRestClient client, Config config)
-        {
-            try
-            {
-                var price = GetLastPrice(client, _symbolDefault);
+        /// <summary>
+        /// 1H
+        /// </summary>
+        [Map("1H")]
+        OneHour = 60 * 60,
 
-                if (price > 0)
-                {
-                    //if LONG
-                    var stopLoss = CalculateStopLoss(client, price, config.CandlesCount, (decimal)config.OffsetMinimal, _sideDefault);
+        /// <summary>
+        /// 2H
+        /// </summary>
+        [Map("2H")]
+        TwoHours = 60 * 60 * 2,
 
-                    var takeProfit = CalculateTakeProfit(price, stopLoss, (decimal)config.RiskRatio, _sideDefault);
-                    var stopLossPrice = price - stopLoss;
+        /// <summary>
+        /// 4H
+        /// </summary>
+        [Map("4H")]
+        FourHours = 60 * 60 * 4,
 
-                    var volume = (decimal)config.Risk / (Math.Abs(stopLossPrice - price) / price);
-                    var qty = GetQuantityByBit(client, _symbolDefault, volume);
+        /// <summary>
+        /// 6H
+        /// </summary>
+        [Map("6H")]
+        SixHours = 60 * 60 * 6,
 
+        /// <summary>
+        /// 12H
+        /// </summary>
+        [Map("12H")]
+        TwelveHours = 60 * 60 * 12,
 
-                    var buyOrder = await client.UsdFuturesApi.Trading.PlaceOrderAsync(
-                        symbol: _symbolDefault,
-                        side: OrderSide.Buy,
-                        type: FuturesOrderType.Market,
-                        quantity: qty
-                    );
+        /// <summary>
+        /// 1D
+        /// </summary>
+        [Map("1D")]
+        OneDay = 60 * 60 * 24,
 
-                    // Take Profit (тейк-профит) - рыночный
-                    var takeProfitOrder = await client.UsdFuturesApi.Trading.PlaceOrderAsync(
-                        symbol: _symbolDefault,
-                        side: OrderSide.Sell,  // противоположно входу (Buy → Sell)
-                        type: FuturesOrderType.TakeProfitMarket,
-                        quantity: qty,
-                        stopPrice: takeProfit  // цена активации Take Profit
-                    );
+        /// <summary>
+        /// 1W
+        /// </summary>
+        [Map("1W")]
+        OneWeek = 60 * 60 * 24 * 7,
 
-                    // Stop Loss (стоп-лосс) - рыночный
-                    var stopLossOrder = await client.UsdFuturesApi.Trading.PlaceOrderAsync(
-                        symbol: _symbolDefault,
-                        side: OrderSide.Sell,
-                        type: FuturesOrderType.StopMarket,
-                        quantity: qty,
-                        stopPrice: stopLoss  // цена активации Stop Loss
-                    );
-                }
-            }
-            catch (Exception e)
-            {
-                RLogger.Error(e);
-            }
-        }
+        /// <summary>
+        /// 1M
+        /// </summary>
+        [Map("1M")]
+        OneMonth = 60 * 60 * 24 * 30,
 
-        private static decimal GetLastPrice(BinanceRestClient client, string symbol)
-        {
-            try
-            {
-                var price = client.UsdFuturesApi.ExchangeData.GetPriceAsync(symbol).Result.Data.Price;
-                return price;
-            }
-            catch (Exception e)
-            {
-                RLogger.Error(e);
-                return -1;
-            }
-        }
-        public static decimal GetSymbolInfoAsync(BinanceRestClient client, string symbol)
-        {
+        /// <summary>
+        /// 3M
+        /// </summary>
+        [Map("3M")]
+        ThreeMonths = 60 * 60 * 24 * 90,
 
-            // Получаем информацию о паре
-            var symbolInfoResult = client.UsdFuturesApi.ExchangeData.GetExchangeInfoAsync().Result;
-            if (!symbolInfoResult.Success)
-            {
-                Console.WriteLine($"Ошибка: {symbolInfoResult.Error}");
-                return 0;
-            }
+        /// <summary>
+        /// 6M
+        /// </summary>
+        [Map("6M")]
+        SixMonths = 60 * 60 * 24 * 180,
 
-            var btcusdtInfo = symbolInfoResult.Data.Symbols.FirstOrDefault(x => x.Name == symbol);
-            if (btcusdtInfo != null)
-            {
-                return btcusdtInfo.MarketLotSizeFilter.StepSize;
-            }
-            else
-            {
-                Console.WriteLine("Пара BTCUSDT не найдена");
-            }
-            return 0;
-        }
-        private static decimal GetQuantityByBit(BinanceRestClient client, string symbol, decimal volume)
-        {
-            try
-            {
-                int round = GetDecimalPlaces(GetSymbolInfoAsync(client, symbol));
-
-                var tickerResult = client.UsdFuturesApi.ExchangeData.GetTickerAsync(symbol).Result;
-
-                if (!tickerResult.Success) RLogger.Error(new Exception($"Ошибка при получении цены: {tickerResult.Error}"));
-
-                var ticker = tickerResult.Data;
-
-                decimal price = ticker.LastPrice; // Текущая цена актива
-
-                // var leverage = client.UsdFuturesApi.Account.GetSymbolConfigurationAsync().Result.Data.First().Leverage;
-                // Рассчитываем количество криптовалюты
-                decimal amount = volume / price;
-                var response = Math.Round(amount, round);
-                return response;
-
-
-            }
-            catch (Exception ex)
-            {
-                RLogger.Error(ex);
-                throw;
-            }
-        }
-        private static int GetDecimalPlaces(decimal number)
-        {
-            // Преобразуем число в строку
-            string numberString = number.ToString(System.Globalization.CultureInfo.InvariantCulture);
-
-            // Проверяем, есть ли точка (разделитель дробной части)
-            if (numberString.Contains('.'))
-            {
-                // Возвращаем количество символов после точки
-                return numberString.Split('.')[1].Length;
-            }
-
-            // Если точки нет, значит, знаков после запятой нет
-            return 0;
-        }
-
-        private static decimal GetMaximumPriceForCandles(BinanceRestClient client, int candlesCount)
-        {
-            var response = .0m;
-
-            var listCandles = GetLastCandles(client, _symbolDefault, _klineIntervalDefault, candlesCount);
-
-            var max = listCandles?.MaxBy(x => x.HighPrice)?.ClosePrice;
-
-            if (max != null) return (decimal)max;
-
-            return response;
-        }
-
-        private static decimal GetMinimalPriceForCandles(BinanceRestClient client, int candlesCount)
-        {
-            var response = .0m;
-
-            var listCandles = GetLastCandles(client, _symbolDefault, _klineIntervalDefault, candlesCount);
-
-            var max = listCandles?.MinBy(x => x.LowPrice)?.ClosePrice;
-
-            if (max != null) return (decimal)max;
-
-            return response;
-        }
-
-        private static List<IBinanceKline>? GetLastCandles(BinanceRestClient client, string symbol, KlineInterval interval, int candlesCount)
-        {
-            try
-            {
-                var starDateTime = DateTime.UtcNow.AddSeconds((int)interval * -candlesCount);
-                var endDateTime = DateTime.UtcNow;
-                var result = client.UsdFuturesApi.ExchangeData.GetKlinesAsync(symbol, interval, starDateTime, endDateTime).Result;
-                if (result.Success)
-                {
-                    var candles = result.Data.ToList();
-                    return candles;
-                }
-
-                return null;
-            }
-            catch (Exception e)
-            {
-                RLogger.Error(e);
-                return null;
-            }
-        }
-
-        private static decimal CalculateStopLoss(BinanceRestClient client, decimal openPrice, int candlesCount, decimal offsetMinimal, string side)
-        {
-            var response = 0m;
-
-            switch (side)
-            {
-                case "LONG":
-                    var minPrice = GetMinimalPriceForCandles(client, candlesCount);
-                    if (minPrice > 0)
-                    {
-                        response = Math.Abs(openPrice - minPrice) + minPrice * offsetMinimal;
-                        //        200 == 90000 - 89900 + 100
-                        break;
-                    }
-                    return -1;
-                case "SHORT":
-                    var maxPrice = GetMaximumPriceForCandles(client, candlesCount);
-                    if (maxPrice > 0)
-                    {
-                        response = Math.Abs(openPrice - maxPrice) + maxPrice * offsetMinimal;
-                        //        200 == 90000 - 90100 + 100
-                        break;
-                    }
-                    return -1;
-            }
-
-            return response;
-        }
-
-        public static decimal CalculateTakeProfit(decimal openPrice, decimal stopLoss, decimal riskRatio, string side)
-        {
-            var response = .0m;
-
-            switch (side)
-            {
-                case "LONG":
-                    response = (openPrice - (openPrice - stopLoss)) * riskRatio + openPrice;
-                    break;
-
-                case "SHORT":
-                    response = (openPrice - (openPrice + stopLoss)) * riskRatio + openPrice;
-                    break;
-            }
-
-            return response;
-        }
+        /// <summary>
+        /// 1Y
+        /// </summary>
+        [Map("1Y")]
+        OneYear = 60 * 60 * 24 * 365,
     }
 }
