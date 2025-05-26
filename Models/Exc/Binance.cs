@@ -12,28 +12,35 @@ public class Binance : IExchange
     private static string _symbolDefault = "BTCUSDT";
     public void GetSignal(GlobalKlineInterval globalInterval)
     {
-        var configs = ApplicationContext.GetConfigs();
-        var users = ApplicationContext.GetUsers();
-
-        if (configs == null) return;
-        if (users == null) return;
-
-        foreach (var config in configs)
+        try
         {
-            var name = config.Name;
-            var user = users.FirstOrDefault(x => x.Name == name);
-            if (user != null)
+            var configs = ApplicationContext.GetConfigs();
+            var users = ApplicationContext.GetUsers();
+
+            if (configs == null) return;
+            if (users == null) return;
+
+            foreach (var config in configs)
             {
-                var api = user.ApiBinance;
-                var secret = user.SecretBinance;
+                var name = config.Name;
+                var user = users.FirstOrDefault(x => x.Name == name);
+                if (user != null)
+                {
+                    var api = user.ApiBinance;
+                    var secret = user.SecretBinance;
 
-                if (string.IsNullOrEmpty(api) && string.IsNullOrEmpty(secret)) return;
+                    if (string.IsNullOrEmpty(api) && string.IsNullOrEmpty(secret)) return;
 
-                var client = new BinanceRestClient();
-                client.SetApiCredentials(new ApiCredentials(api, secret));
-                var interval = ConvertToLocalKline(globalInterval);
-                Buy(client, interval, config);
+                    var client = new BinanceRestClient();
+                    client.SetApiCredentials(new ApiCredentials(api, secret));
+                    var interval = ConvertToLocalKline(globalInterval);
+                    Buy(client, interval, config);
+                }
             }
+        }
+        catch (Exception e)
+        {
+            Error.Log(e);
         }
     }
 
@@ -90,7 +97,24 @@ public class Binance : IExchange
                             quantity: qty,
                             stopPrice: stopLossPrice  // цена активации Stop Loss
                         ).Result;
+
+                        if (stopLossOrder.Success)
+                        {
+
+                        }
+                        else
+                        {
+                            Error.Log(new Exception(stopLossOrder.Error?.Message));
+                        }
                     }
+                    else
+                    {
+                        Error.Log(new Exception(takeProfitOrder.Error?.Message));
+                    }
+                }
+                else
+                {
+                    Error.Log(new Exception(buyOrder.Error?.Message));
                 }
             }
         }

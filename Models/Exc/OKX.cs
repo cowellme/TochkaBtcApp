@@ -47,7 +47,7 @@ namespace TochkaBtcApp.Models.Exc
             }
             catch (Exception e)
             {
-                RLogger.Error(e);
+                Error.Log(e);
             }
         }
         private static KlineInterval ConvertToLocalKline(GlobalKlineInterval interval)
@@ -116,13 +116,25 @@ namespace TochkaBtcApp.Models.Exc
                             {
 
                             }
+                            else
+                            {
+                                Error.Log(new Exception(takeProfitOrder.Error?.Message));
+                            }
                         }
+                        else
+                        {
+                            Error.Log(new Exception(stopLossOrder.Error?.Message));
+                        }
+                    }
+                    else
+                    {
+                        Error.Log(new Exception(buyOrderResult.Error?.Message));
                     }
                 }
             }
             catch (Exception e)
             {
-                RLogger.Error(e);
+                Error.Log(e);
             }
         }
         private static decimal GetLastPrice(OKXRestClient client, string symbol)

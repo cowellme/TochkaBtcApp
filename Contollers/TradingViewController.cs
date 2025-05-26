@@ -17,47 +17,55 @@ namespace TochkaBtcApp.Contollers
         [HttpPost("signal")]
         public IActionResult Signal([FromBody] dynamic alert)
         {
-            //16.05.2025 6:49:02: Data: {"text": "Buy"}
-            string str = $"Data: {alert}";
-            System.IO.File.AppendAllText("log.tmp", $"{DateTime.Now}: {str}\n");
-
-            if (str.Contains("Long 5m Binance"))
+            try
             {
-                var intrval = GlobalKlineInterval.FiveMinutes;
-                var exch = new Models.Exc.Binance();
-                exch.GetSignal(intrval);
+                //16.05.2025 6:49:02: Data: {"text": "Buy"}
+                string str = $"Data: {alert}";
+                System.IO.File.AppendAllText("log.tmp", $"{DateTime.Now}: {str}\n");
+
+                if (str.Contains("Long 5m Binance"))
+                {
+                    var intrval = GlobalKlineInterval.FiveMinutes;
+                    var exch = new Models.Exc.Binance();
+                    exch.GetSignal(intrval);
+
+                    return Ok(new { status = "Success", data = alert });
+                }
+
+                if (str.Contains("Long 15m Binance"))
+                {
+                    var intrval = GlobalKlineInterval.FifteenMinutes;
+                    var exch = new Models.Exc.Binance();
+                    exch.GetSignal(intrval);
+
+                    return Ok(new { status = "Success", data = alert });
+                }
+
+                if (str.Contains("Long 5m OKX"))
+                {
+                    var intrval = GlobalKlineInterval.FiveMinutes;
+                    var exch = new Models.Exc.OKX();
+                    exch.GetSignal(intrval);
+
+                    return Ok(new { status = "Success", data = alert });
+                }
+
+                if (str.Contains("Long 15m OKX"))
+                {
+                    var intrval = GlobalKlineInterval.FifteenMinutes;
+                    var exch = new Models.Exc.OKX();
+                    exch.GetSignal(intrval);
+
+                    return Ok(new { status = "Success", data = alert });
+                }
 
                 return Ok(new { status = "Success", data = alert });
             }
-
-            if (str.Contains("Long 15m Binance"))
+            catch (Exception e)
             {
-                var intrval = GlobalKlineInterval.FifteenMinutes;
-                var exch = new Models.Exc.Binance();
-                exch.GetSignal(intrval);
-
-                return Ok(new { status = "Success", data = alert });
+                Error.Log(e);
+                return Ok();
             }
-
-            if (str.Contains("Long 5m OKX"))
-            {
-                var intrval = GlobalKlineInterval.FiveMinutes;
-                var exch = new Models.Exc.OKX();
-                exch.GetSignal(intrval);
-
-                return Ok(new { status = "Success", data = alert });
-            }
-
-            if(str.Contains("Long 15m OKX"))
-            {
-                var intrval = GlobalKlineInterval.FifteenMinutes;
-                var exch = new Models.Exc.OKX();
-                exch.GetSignal(intrval);
-
-                return Ok(new { status = "Success", data = alert });
-            }
-
-            return Ok(new { status = "Success", data = alert });
         }
     } 
     //'ex6rYpDE58dY0I8ehgwm4Urd0XhDSCDEMiNulWVKJvWl3pQ7bchR5F9Iwccm2OKP'
