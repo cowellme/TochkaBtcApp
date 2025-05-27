@@ -1,7 +1,10 @@
 ﻿using Binance.Net.Clients;
 using Binance.Net.Enums;
 using Binance.Net.Interfaces;
+using Binance.Net.Objects.Models.Futures;
 using CryptoExchange.Net.Authentication;
+using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json;
 using TochkaBtcApp.Contollers;
 
 namespace TochkaBtcApp.Models.Exc;
@@ -10,6 +13,24 @@ public class Binance : IExchange
 {
     private static string _sideDefault = "LONG";
     private static string _symbolDefault = "BTCUSDT";
+
+    private static BinanceRestClient? GetClient(AppUser user)
+    {
+        try
+        {
+            var newClient = new BinanceRestClient();
+            
+            newClient.SetApiCredentials(new ApiCredentials(user.ApiBinance, user.SecretBinance));
+
+            return newClient;
+        }
+        catch (Exception e)
+        {
+            Error.Log(e);
+            return null;
+        }
+    }
+
     public void GetSignal(GlobalKlineInterval globalInterval)
     {
         try
@@ -29,10 +50,10 @@ public class Binance : IExchange
                     var api = user.ApiBinance;
                     var secret = user.SecretBinance;
 
-                    if (string.IsNullOrEmpty(api) && string.IsNullOrEmpty(secret)) return;
+                    Error.Log(new Exception($"{JsonConvert.SerializeObject(user)}"));
+                    if (string.IsNullOrEmpty(api) && string.IsNullOrEmpty(secret)) continue;
 
-                    var client = new BinanceRestClient();
-                    client.SetApiCredentials(new ApiCredentials(api, secret));
+                    var client = GetClient(user);
                     var interval = ConvertToLocalKline(globalInterval);
                     Buy(client, interval, config);
                 }
@@ -43,13 +64,12 @@ public class Binance : IExchange
             Error.Log(e);
         }
     }
-
     private static KlineInterval ConvertToLocalKline(GlobalKlineInterval interval)
     {
         var allValues = Enum.GetValues(typeof(KlineInterval)).Cast<KlineInterval>().ToList();
         return allValues.FirstOrDefault(x => (int)x == (int)interval);
     }
-    private static async void Buy(BinanceRestClient client, KlineInterval interval, Config config)
+    private static void Buy(BinanceRestClient client, KlineInterval interval, Config config)
     {
         try
         {
@@ -58,16 +78,16 @@ public class Binance : IExchange
             if (price > 0)
             {
                 //if LONG
-                var stopLoss = CalculateStopLoss(client, interval, price, config.CandlesCount, (decimal)config.OffsetMinimal, _sideDefault);
+                var stopLoss = CalculateStopLoss(client, interval, price, config.CandlesCount, (decimal)config.OffsetMinimal / 100, _sideDefault);
 
                 var takeProfit = CalculateTakeProfit(price, stopLoss, (decimal)config.RiskRatio, _sideDefault);
                 var stopLossPrice = price - stopLoss;
                 takeProfit = Math.Round(takeProfit, 2);
                 stopLossPrice = Math.Round(stopLossPrice, 2);
                 var volume = (decimal)config.Risk / (Math.Abs(stopLossPrice - price) / price);
-                var qty = GetQuantityByBit(client, _symbolDefault, volume);
+                var qty = GetQuantity(client, _symbolDefault, volume);
 
-
+                Error.Log(new Exception($"GetSignal SL:{stopLossPrice}, TP:{takeProfit}, V:{volume}"));
 
                 var buyOrder = client.UsdFuturesApi.Trading.PlaceOrderAsync(
                     symbol: _symbolDefault,
@@ -89,7 +109,7 @@ public class Binance : IExchange
 
                     if (takeProfitOrder.Success)
                     {
-                        // Stop Loss (стоп-лосс) - рыночный
+                        // Stop Loss(стоп-лосс) - рыночный
                         var stopLossOrder = client.UsdFuturesApi.Trading.PlaceOrderAsync(
                             symbol: _symbolDefault,
                             side: OrderSide.Sell,
@@ -158,7 +178,7 @@ public class Binance : IExchange
         }
         return 0;
     }
-    private static decimal GetQuantityByBit(BinanceRestClient client, string symbol, decimal volume)
+    private static decimal GetQuantity(BinanceRestClient client, string symbol, decimal volume)
     {
         try
         {
@@ -207,7 +227,7 @@ public class Binance : IExchange
 
         var listCandles = GetLastCandles(client, _symbolDefault, interval, candlesCount);
 
-        var max = listCandles?.MaxBy(x => x.HighPrice)?.ClosePrice;
+        var max = listCandles?.MaxBy(x => x.HighPrice)?.HighPrice;
 
         if (max != null) return (decimal)max;
 
@@ -219,9 +239,9 @@ public class Binance : IExchange
 
         var listCandles = GetLastCandles(client, _symbolDefault, interval, candlesCount);
 
-        var max = listCandles?.MinBy(x => x.LowPrice)?.ClosePrice;
+        var min = listCandles?.MinBy(x => x.LowPrice)?.LowPrice;
 
-        if (max != null) return (decimal)max;
+        if (min != null) return (decimal)min;
 
         return response;
     }
@@ -290,5 +310,26 @@ public class Binance : IExchange
         }
 
         return response;
+    }
+
+    public static List<BinanceFuturesUsdtTrade>? GetPositionsHistory(AppUser user)
+    {
+        try
+        {
+            var client = GetClient(user);
+            var result = client.UsdFuturesApi.Trading.GetUserTradesAsync(_symbolDefault).Result;
+            if (result.Success)
+            {
+                var positions = result.Data.OrderByDescending(x => x.Timestamp).ToList();
+                return positions;
+            }
+
+            return null;
+        }
+        catch (Exception e)
+        {
+            Error.Log(e);
+            return null;
+        }
     }
 }

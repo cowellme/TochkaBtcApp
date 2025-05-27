@@ -13,7 +13,7 @@ namespace TochkaBtcApp.Models.Exc
     {
 
         private static string _sideDefault = "LONG";
-        private static string _symbolDefault = "BTC-USDT";
+        private static string _symbolDefault = "BTC-USDT-SWAP";
         //private static KlineInterval _klineIntervalDefault = KlineInterval.FiveMinutes;
         public void GetSignal(GlobalKlineInterval globalInterval)
         {
@@ -36,7 +36,7 @@ namespace TochkaBtcApp.Models.Exc
                         var secret = user.SecretOKX;
                         var phrase = user.PhraseOKX;
 
-                        if (string.IsNullOrEmpty(api) && string.IsNullOrEmpty(secret) && string.IsNullOrEmpty(phrase)) return;
+                        if (string.IsNullOrEmpty(api) && string.IsNullOrEmpty(secret) && string.IsNullOrEmpty(phrase)) continue;
 
                         var client = new OKXRestClient();
                         client.SetApiCredentials(new ApiCredentials(api, secret, pass: phrase));
@@ -64,7 +64,7 @@ namespace TochkaBtcApp.Models.Exc
                 if (price > 0)
                 {
                     //if LONG
-                    var stopLoss = CalculateStopLoss(client, interval, price, config.CandlesCount, (decimal)config.OffsetMinimal, _sideDefault);
+                    var stopLoss = CalculateStopLoss(client, interval, price, config.CandlesCount, (decimal)config.OffsetMinimal / 100, _sideDefault);
 
                     var takeProfit = CalculateTakeProfit(price, stopLoss, (decimal)config.RiskRatio, _sideDefault);
                     var stopLossPrice = price - stopLoss;
@@ -72,9 +72,22 @@ namespace TochkaBtcApp.Models.Exc
                     takeProfit = Math.Round(takeProfit, 2);
                     stopLossPrice = Math.Round(stopLossPrice, 2);
 
-                    var volume = 1000;// (decimal)config.Risk / (Math.Abs(stopLossPrice - price) / price);
-                    var qty = 15;//GetQuantityByBit(client, _symbolDefault, volume);
+                    var volume = 2359; //(decimal)config.Risk / (Math.Abs(stopLossPrice - price) / price);
+                    var qty = Math.Round(GetQuantityByBit(client, _symbolDefault, volume), 2);
 
+                    //var resLever = client.UnifiedApi.Account.SetLeverageAsync(100, MarginMode.Cross, asset: "USDT")
+                    //    .Result;
+
+                    //if (resLever.Success)
+                    //{
+
+                    //}
+                    //else
+                    //{
+                    //    Error.Log(new Exception(resLever.Error?.Message));
+                    //}
+
+                    Error.Log(new Exception($"GetSignal SL:{stopLossPrice}, TP:{takeProfit}, V:{volume}"));
                     var buyOrderResult = client.UnifiedApi.Trading.PlaceOrderAsync(
                         symbol: _symbolDefault,
                         tradeMode: TradeMode.Cross,
@@ -93,7 +106,7 @@ namespace TochkaBtcApp.Models.Exc
                             AlgoOrderType.Conditional,
                             slTriggerPrice: stopLossPrice,
                             slTriggerPxType: AlgoPriceType.Last,
-                            slOrderPrice: takeProfit,
+                            slOrderPrice: stopLossPrice,
                             quantity: qty,
                             asset: "USDT"
                         ).Result;
@@ -128,7 +141,7 @@ namespace TochkaBtcApp.Models.Exc
                     }
                     else
                     {
-                        Error.Log(new Exception(buyOrderResult.Error?.Message));
+                        Error.Log(new Exception($"{buyOrderResult.Error?.Message},Vol: {volume}"));
                     }
                 }
             }
@@ -163,7 +176,7 @@ namespace TochkaBtcApp.Models.Exc
                 return 0;
             }
 
-            var btcusdtInfo = symbolInfoResult.Data.FirstOrDefault(x => x.InstrumentFamily == symbol);
+            var btcusdtInfo = symbolInfoResult.Data.FirstOrDefault(x => x.Symbol == symbol);
             if (btcusdtInfo != null)
             {
                 return btcusdtInfo.LotSize.Value;
@@ -198,7 +211,7 @@ namespace TochkaBtcApp.Models.Exc
             }
             catch (Exception ex)
             {
-                RLogger.Error(ex);
+                Error.Log(ex);
                 throw;
             }
         }
