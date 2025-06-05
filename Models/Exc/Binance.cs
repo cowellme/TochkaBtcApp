@@ -1,10 +1,15 @@
-﻿using Binance.Net.Clients;
+﻿using System.Runtime.CompilerServices;
+using Binance.Net.Clients;
 using Binance.Net.Enums;
 using Binance.Net.Interfaces;
 using Binance.Net.Objects.Models.Futures;
+using Binance.Net.Objects.Models.Futures.Socket;
 using CryptoExchange.Net.Authentication;
+using CryptoExchange.Net.Objects.Sockets;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Newtonsoft.Json;
+using OKX.Net.Objects.Public;
 using TochkaBtcApp.Contollers;
 
 namespace TochkaBtcApp.Models.Exc;
@@ -13,7 +18,28 @@ public class Binance : IExchange
 {
     private static string _sideDefault = "LONG";
     private static string _symbolDefault = "BTCUSDT";
+    private static List<Order> _orders = new List<Order>();
+    private static List<AppUser> _users = new List<AppUser>();
 
+    public static async Task Checker()
+    {
+        await Task.Run(() =>
+        {
+            _orders = Order.GetOrders();
+            _users = ApplicationContext.GetUsers();
+            while (true)
+            {
+                Thread.Sleep(1000);
+
+                if (_orders.Count < 1) continue;
+
+                foreach (var order in _orders.ToList())
+                {
+                    if (order.CheckPair()) _orders.Remove(order);
+                }
+            }
+        });
+    }
     private static BinanceRestClient? GetClient(AppUser user)
     {
         try
@@ -30,7 +56,6 @@ public class Binance : IExchange
             return null;
         }
     }
-
     public void GetSignal(GlobalKlineInterval globalInterval)
     {
         try
@@ -55,7 +80,8 @@ public class Binance : IExchange
 
                     var client = GetClient(user);
                     var interval = ConvertToLocalKline(globalInterval);
-                    Buy(client, interval, config);
+
+                    if (client != null) Buy(client, interval, config);
                 }
             }
         }
@@ -80,14 +106,14 @@ public class Binance : IExchange
                 //if LONG
                 var stopLoss = CalculateStopLoss(client, interval, price, config.CandlesCount, (decimal)config.OffsetMinimal / 100, _sideDefault);
 
-                var takeProfit = CalculateTakeProfit(price, stopLoss, (decimal)config.RiskRatio, _sideDefault);
+                var takeProfitPrice = CalculateTakeProfit(price, stopLoss, (decimal)config.RiskRatio, _sideDefault);
                 var stopLossPrice = price - stopLoss;
-                takeProfit = Math.Round(takeProfit, 2);
+                takeProfitPrice = Math.Round(takeProfitPrice, 2);
                 stopLossPrice = Math.Round(stopLossPrice, 2);
                 var volume = (decimal)config.Risk / (Math.Abs(stopLossPrice - price) / price);
                 var qty = GetQuantity(client, _symbolDefault, volume);
 
-                Error.Log(new Exception($"GetSignal SL:{stopLossPrice}, TP:{takeProfit}, V:{volume}"));
+                Error.Log(new Exception($"GetSignal SL:{stopLossPrice}, TP:{takeProfitPrice}, V:{volume}"));
 
                 var buyOrder = client.UsdFuturesApi.Trading.PlaceOrderAsync(
                     symbol: _symbolDefault,
@@ -104,7 +130,7 @@ public class Binance : IExchange
                         side: OrderSide.Sell,  // противоположно входу (Buy → Sell)
                         type: FuturesOrderType.TakeProfitMarket,
                         quantity: qty,
-                        stopPrice: takeProfit  // цена активации Take Profit
+                        stopPrice: takeProfitPrice
                     ).Result;
 
                     if (takeProfitOrder.Success)
@@ -115,12 +141,22 @@ public class Binance : IExchange
                             side: OrderSide.Sell,
                             type: FuturesOrderType.StopMarket,
                             quantity: qty,
-                            stopPrice: stopLossPrice  // цена активации Stop Loss
+                            stopPrice: stopLossPrice
                         ).Result;
 
                         if (stopLossOrder.Success)
                         {
-
+                            _orders.Add(new Order
+                            {
+                                Client = client,
+                                Symbol = _symbolDefault,
+                                TakeId = takeProfitOrder.Data.Id,
+                                StopId = stopLossOrder.Data.Id,
+                                StopPrice = stopLossPrice,
+                                TakePrice = takeProfitPrice,
+                                Name = config.Name
+                            });
+                            Order.SaveOrders(_orders);
                         }
                         else
                         {
@@ -311,7 +347,6 @@ public class Binance : IExchange
 
         return response;
     }
-
     public static List<BinanceFuturesUsdtTrade>? GetPositionsHistory(AppUser user)
     {
         try
@@ -325,6 +360,185 @@ public class Binance : IExchange
             }
 
             return null;
+        }
+        catch (Exception e)
+        {
+            Error.Log(e);
+            return null;
+        }
+    }
+    public static void TestBuy()
+    {
+        Config config = new Config
+        {
+            CandlesCount = 5,
+            RiskRatio = 3,
+            OffsetMinimal = 0.1,
+            Risk = 3,
+            TimeFrame = "5m",
+            Name = "cryptoingener"
+        };
+        BinanceRestClient client = new BinanceRestClient();
+        client.SetApiCredentials(new ApiCredentials("aNXsTDmb9PI6f3UeYN8A2HvqlqhzI0KZIt4cJpOncylMMD3uDXKCnY5SUBFfFVSJ", "Rp2CRrstTdJMYm70NPkKKA66ZsyqX6KngUKymZohiKNTFFnAsPqc0mlLaWqga6kb"));
+        
+        KlineInterval interval = KlineInterval.FiveMinutes;
+
+        Buy(client, interval, config);
+    }
+}
+
+public class Order
+{
+    private static string pathOrders = Environment.CurrentDirectory + @"\orders.json";
+    public string Symbol { get; set; }
+    [JsonIgnore]
+    public BinanceRestClient Client { get; set; }
+    public string Name { get; set; }
+    public decimal TakePrice { get; set; }
+    public decimal StopPrice { get; set; }
+    public long TakeId { get; set; }
+    public long StopId { get; set; }
+
+    public static void SaveOrders(List<Order> orders)
+    {
+        var jsonString = JsonConvert.SerializeObject(orders);
+        File.WriteAllText(pathOrders, jsonString);
+    }
+
+    public static List<Order> GetOrders()
+    {
+        try
+        {
+            var jsonString = File.ReadAllText(pathOrders);
+            var orders = JsonConvert.DeserializeObject<List<Order>>(jsonString);
+
+            if (orders == null)
+            {
+                orders = new List<Order>();
+                SaveOrders(orders);
+            }
+
+            return orders;
+        }
+        catch (Exception e)
+        {
+            var orders = new List<Order>();
+            SaveOrders(orders);
+            return orders;
+        }
+    }
+    public static bool CancelOrder(BinanceRestClient client ,string symbol ,long id)
+    {
+        var result = client.UsdFuturesApi.Trading.CancelOrderAsync(symbol, id).Result;
+
+        if (result.Success)
+        {
+            return true;
+        }
+
+        return false;
+    }
+    public bool CancelSl(BinanceRestClient client)
+    {
+        try
+        {
+            var result = client.UsdFuturesApi.Trading.CancelOrderAsync(Symbol, StopId).Result;
+
+            if (result.Success)
+            {
+                return true;
+            }
+
+            return false;
+        }
+        catch (Exception e)
+        {
+            return false;
+        }
+    }
+    public bool CancelTp(BinanceRestClient client)
+    {
+        try
+        {
+            var result = client.UsdFuturesApi.Trading.CancelOrderAsync(Symbol, TakeId).Result;
+
+            if (result.Success)
+            {
+                return true;
+            }
+
+            return false;
+        }
+        catch (Exception e)
+        {
+            return false;
+        }
+    }
+    public bool CheckPair()
+    {
+        try
+        {
+            var user = ApplicationContext.GetUsers()?.FirstOrDefault(x => x.Name == Name);
+
+            if (user == null) return false;
+
+            var client = GetClient(user);
+
+            if (client == null) return false;
+
+            var result = client.UsdFuturesApi.Trading.GetOpenOrdersAsync(Symbol).Result;
+
+            if (result.Success)
+            {
+                var openOrders = result.Data.ToList();
+
+                var isOpenSl = false;
+                var isOpenTp = false;
+
+                if (openOrders.Count > 0)
+                {
+                    foreach (var order in openOrders)
+                    {
+                        if (order.Id == TakeId) isOpenTp = true;
+                        if (order.Id == StopId) isOpenSl = true;
+                    }
+
+                    if (!isOpenTp) return CancelSl(client);
+                    if (!isOpenSl) return CancelTp(client);
+                }
+            }
+
+            return false;
+        }
+        catch (Exception e)
+        {
+            return false;
+        }
+    }
+    public static void ClearOrders(BinanceRestClient client, string symbol)
+    {
+        var result = client.UsdFuturesApi.Trading.GetOpenOrdersAsync(symbol).Result;
+
+        if (result.Success)
+        {
+            var openOrders = result.Data.ToList();
+
+            foreach (var order in openOrders)
+            {
+                var id = order.Id;
+                CancelOrder(client, symbol, id);
+            }
+        }
+    }
+    private static BinanceRestClient? GetClient(AppUser user)
+    {
+        try
+        {
+            var newClient = new BinanceRestClient();
+
+            newClient.SetApiCredentials(new ApiCredentials(user.ApiBinance, user.SecretBinance));
+
+            return newClient;
         }
         catch (Exception e)
         {
