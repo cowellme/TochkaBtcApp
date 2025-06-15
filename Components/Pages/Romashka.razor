@@ -60,7 +60,10 @@ else
             <label class="form-label">5. Выбор ТФ (таймфрейм)</label>
             <select class="form-select input" @bind="_selectedTimeFrame">
                 <option selected disabled>Выберите таймфрейм</option>
-                <option value="5m">5 минут</option>
+                <option value="FiveMinutes">5 минут</option>
+                <option value="FifteenMinutes">15 минут</option>
+                <option value="OneHour">1 час</option>
+                <option value="FourHours">4 часа</option>
             </select>
         </div>
 
@@ -74,6 +77,8 @@ else
             {
                 <div class="card mb-2 p-1" style="background: #0c0c0c">
                     <div class="card-body">
+                        <span class=""><b>ТФ:</b> @config.TimeFrame</span>
+                        <br>
                         <span class=""><b>Кол-во свечей:</b> @config.CandlesCount</span>
                         <br>
                         <span class=""><b>Отступ от мин.:</b> @config.OffsetMinimal %</span>
@@ -132,7 +137,7 @@ else
     private string _action = string.Empty;
 
     
-    private string _selectedTimeFrame = "5m";
+    private string _selectedTimeFrame = "FiveMinutes";
     private int _candlesCount = 5;
     private double _offsetMinimal = 0.002;
     private double _riskRatio = 3;

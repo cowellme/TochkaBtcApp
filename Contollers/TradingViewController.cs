@@ -23,41 +23,61 @@ namespace TochkaBtcApp.Contollers
                 string str = $"Data: {alert}";
                 System.IO.File.AppendAllText("log.tmp", $"{DateTime.Now}: {str}\n");
 
-                if (str.Contains("Long 5m Binance"))
+                //if (str.Contains("Long 5m Binance"))
+                //{
+                //    var intrval = GlobalKlineInterval.FiveMinutes;
+                //    var exch = new Models.Exc.Binance();
+                //    exch.GetSignal(intrval);
+
+                //    return Ok(new { status = "Success", data = alert });
+                //}
+
+                //if (str.Contains("Long 15m Binance"))
+                //{
+                //    var intrval = GlobalKlineInterval.FifteenMinutes;
+                //    var exch = new Models.Exc.Binance();
+                //    exch.GetSignal(intrval);
+
+                //    return Ok(new { status = "Success", data = alert });
+                //}
+
+                if (str.Contains("Long 5m BingX"))
                 {
                     var intrval = GlobalKlineInterval.FiveMinutes;
-                    var exch = new Models.Exc.Binance();
+                    var exch = new Models.Exc.BingX();
                     exch.GetSignal(intrval);
 
                     return Ok(new { status = "Success", data = alert });
                 }
 
-                if (str.Contains("Long 15m Binance"))
+                if (str.Contains("Long 15m BingX"))
                 {
                     var intrval = GlobalKlineInterval.FifteenMinutes;
-                    var exch = new Models.Exc.Binance();
+                    var exch = new Models.Exc.BingX();
                     exch.GetSignal(intrval);
 
                     return Ok(new { status = "Success", data = alert });
                 }
 
-                if (str.Contains("Long 5m OKX"))
+                if (str.Contains("Long 1h BingX"))
                 {
-                    var intrval = GlobalKlineInterval.FiveMinutes;
-                    var exch = new Models.Exc.OKX();
+                    var intrval = GlobalKlineInterval.OneHour;
+                    var exch = new Models.Exc.BingX();
                     exch.GetSignal(intrval);
 
                     return Ok(new { status = "Success", data = alert });
                 }
 
-                if (str.Contains("Long 15m OKX"))
+                if (str.Contains("Long 4h BingX"))
                 {
-                    var intrval = GlobalKlineInterval.FifteenMinutes;
-                    var exch = new Models.Exc.OKX();
+                    var intrval = GlobalKlineInterval.FourHours;
+                    var exch = new Models.Exc.BingX();
                     exch.GetSignal(intrval);
 
                     return Ok(new { status = "Success", data = alert });
                 }
+
+                
 
                 return Ok(new { status = "Success", data = alert });
             }

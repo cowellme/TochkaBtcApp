@@ -1,21 +1,17 @@
-﻿using System.Runtime.CompilerServices;
-using Binance.Net.Clients;
+﻿using Binance.Net.Clients;
 using Binance.Net.Enums;
 using Binance.Net.Interfaces;
 using Binance.Net.Objects.Models.Futures;
-using Binance.Net.Objects.Models.Futures.Socket;
 using CryptoExchange.Net.Authentication;
-using CryptoExchange.Net.Objects.Sockets;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Newtonsoft.Json;
-using OKX.Net.Objects.Public;
+using System.IO;
 using TochkaBtcApp.Contollers;
 
 namespace TochkaBtcApp.Models.Exc;
 
 public class Binance : IExchange
 {
+    private static string _exchangeName = "binance";
     private static string _sideDefault = "LONG";
     private static string _symbolDefault = "BTCUSDT";
     private static List<Order> _orders = new List<Order>();
@@ -25,7 +21,7 @@ public class Binance : IExchange
     {
         await Task.Run(() =>
         {
-            _orders = Order.GetOrders();
+            _orders = Order.GetOrders(_exchangeName);
             _users = ApplicationContext.GetUsers();
             while (true)
             {
@@ -70,18 +66,16 @@ public class Binance : IExchange
             {
                 var name = config.Name;
                 var user = users.FirstOrDefault(x => x.Name == name);
+
                 if (user != null)
                 {
                     var api = user.ApiBinance;
                     var secret = user.SecretBinance;
 
-                    Error.Log(new Exception($"{JsonConvert.SerializeObject(user)}"));
                     if (string.IsNullOrEmpty(api) && string.IsNullOrEmpty(secret)) continue;
 
-                    var client = GetClient(user);
-                    var interval = ConvertToLocalKline(globalInterval);
-
-                    if (client != null) Buy(client, interval, config);
+                    var interval = ConvertToLocalKline(globalInterval); 
+                    Buy(user, interval, config);
                 }
             }
         }
@@ -95,10 +89,13 @@ public class Binance : IExchange
         var allValues = Enum.GetValues(typeof(KlineInterval)).Cast<KlineInterval>().ToList();
         return allValues.FirstOrDefault(x => (int)x == (int)interval);
     }
-    private static void Buy(BinanceRestClient client, KlineInterval interval, Config config)
+    private static void Buy(AppUser user, KlineInterval interval, Config config)
     {
         try
         {
+            var client = GetClient(user);
+            if (client == null) return;
+
             var price = GetLastPrice(client, _symbolDefault);
 
             if (price > 0)
@@ -148,15 +145,17 @@ public class Binance : IExchange
                         {
                             _orders.Add(new Order
                             {
-                                Client = client,
+                                Api = user.ApiBinance,
+                                Secret = user.SecretBinance,
                                 Symbol = _symbolDefault,
                                 TakeId = takeProfitOrder.Data.Id,
                                 StopId = stopLossOrder.Data.Id,
                                 StopPrice = stopLossPrice,
                                 TakePrice = takeProfitPrice,
-                                Name = config.Name
+                                Name = config.Name,
+                                Exchange = _exchangeName
                             });
-                            Order.SaveOrders(_orders);
+                            Order.SaveOrders(_orders, _exchangeName);
                         }
                         else
                         {
@@ -352,13 +351,17 @@ public class Binance : IExchange
         try
         {
             var client = GetClient(user);
-            var result = client.UsdFuturesApi.Trading.GetUserTradesAsync(_symbolDefault).Result;
-            if (result.Success)
-            {
-                var positions = result.Data.OrderByDescending(x => x.Timestamp).ToList();
-                return positions;
-            }
 
+            if (client != null)
+            {
+                var result = client.UsdFuturesApi.Trading.GetUserTradesAsync(_symbolDefault).Result;
+                if (result.Success)
+                {
+                    var positions = result.Data.OrderByDescending(x => x.Timestamp).ToList();
+                    return positions;
+                }
+            }
+            
             return null;
         }
         catch (Exception e)
@@ -367,55 +370,39 @@ public class Binance : IExchange
             return null;
         }
     }
-    public static void TestBuy()
-    {
-        Config config = new Config
-        {
-            CandlesCount = 5,
-            RiskRatio = 3,
-            OffsetMinimal = 0.1,
-            Risk = 3,
-            TimeFrame = "5m",
-            Name = "cryptoingener"
-        };
-        BinanceRestClient client = new BinanceRestClient();
-        client.SetApiCredentials(new ApiCredentials("aNXsTDmb9PI6f3UeYN8A2HvqlqhzI0KZIt4cJpOncylMMD3uDXKCnY5SUBFfFVSJ", "Rp2CRrstTdJMYm70NPkKKA66ZsyqX6KngUKymZohiKNTFFnAsPqc0mlLaWqga6kb"));
-        
-        KlineInterval interval = KlineInterval.FiveMinutes;
-
-        Buy(client, interval, config);
-    }
 }
 
 public class Order
 {
-    private static string pathOrders = Environment.CurrentDirectory + @"\orders.json";
     public string Symbol { get; set; }
-    [JsonIgnore]
-    public BinanceRestClient Client { get; set; }
+    public string Api { get; set; }
+    public string Secret { get; set; }
     public string Name { get; set; }
     public decimal TakePrice { get; set; }
     public decimal StopPrice { get; set; }
     public long TakeId { get; set; }
     public long StopId { get; set; }
+    public string Exchange { get; set; }
 
-    public static void SaveOrders(List<Order> orders)
+    public static void SaveOrders(List<Order> orders, string exchange)
     {
+        var path = Environment.CurrentDirectory + $@"\orders_{exchange}.json";
         var jsonString = JsonConvert.SerializeObject(orders);
-        File.WriteAllText(pathOrders, jsonString);
+        File.WriteAllText(path, jsonString);
     }
 
-    public static List<Order> GetOrders()
+    public static List<Order> GetOrders(string exchange)
     {
         try
         {
-            var jsonString = File.ReadAllText(pathOrders);
+            var path = Environment.CurrentDirectory + $@"\orders_{exchange}.json";
+            var jsonString = File.ReadAllText(path);
             var orders = JsonConvert.DeserializeObject<List<Order>>(jsonString);
 
             if (orders == null)
             {
                 orders = new List<Order>();
-                SaveOrders(orders);
+                SaveOrders(orders, exchange);
             }
 
             return orders;
@@ -423,7 +410,7 @@ public class Order
         catch (Exception e)
         {
             var orders = new List<Order>();
-            SaveOrders(orders);
+            SaveOrders(orders, exchange);
             return orders;
         }
     }

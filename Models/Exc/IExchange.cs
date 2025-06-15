@@ -105,5 +105,6 @@ namespace TochkaBtcApp.Models.Exc
         /// </summary>
         [Map("1Y")]
         OneYear = 60 * 60 * 24 * 365,
+
     }
 }

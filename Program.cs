@@ -9,7 +9,7 @@ namespace TochkaBtcApp
     {
         public static void Main(string[] args)
         {
-            var task = Models.Exc.Binance.Checker();
+            var task = Models.Exc.BingX.Checker();
 
             var builder = WebApplication.CreateBuilder(args);
 

@@ -214,9 +214,12 @@
                 PhraseOKX = user.PhraseOKX;
 
                 _positions = Binance.GetPositionsHistory(user);
-                foreach (var position in _positions.Where(x => x.Symbol == "BTCUSDT"))
+                if (_positions != null)
                 {
-                    _allPnl += position.RealizedPnl;
+                    foreach (var position in _positions.Where(x => x.Symbol == "BTCUSDT"))
+                    {
+                        _allPnl += position.RealizedPnl;
+                    }
                 }
             }
         }
