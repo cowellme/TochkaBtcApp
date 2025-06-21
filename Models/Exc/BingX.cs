@@ -10,7 +10,7 @@ namespace TochkaBtcApp.Models.Exc
     {
         private static string _exchangeName = "bingx";
         private static string _sideDefault = "LONG";
-        private static string _symbolDefault = "BTCUSDT";
+        private static string _symbolDefault = "BTC-USDT";
         private static List<Order> _orders = new List<Order>();
         private static List<AppUser> _users = new List<AppUser>();
 
@@ -191,7 +191,7 @@ namespace TochkaBtcApp.Models.Exc
                             if (string.IsNullOrEmpty(api) && string.IsNullOrEmpty(secret)) continue;
 
                             var interval = ConvertToLocalKline(globalInterval);
-                            // Buy(user, interval, config);
+                            Buy(user, interval, config);
                         }
                     }
                 }
@@ -313,7 +313,7 @@ namespace TochkaBtcApp.Models.Exc
                             _symbolDefault,
                             OrderSide.Sell,
                             FuturesOrderType.StopMarket,
-                            PositionSide.Short,
+                            PositionSide.Long,
                             calculated.quantity,
                             stopPrice: calculated.stopLossPrice
                             ).Result;
@@ -325,7 +325,7 @@ namespace TochkaBtcApp.Models.Exc
                                 _symbolDefault,
                                 OrderSide.Sell,
                                 FuturesOrderType.TakeProfitMarket,
-                                PositionSide.Short,
+                                PositionSide.Long,
                                 calculated.quantity,
                                 stopPrice: calculated.takeProfitPrice
                                 ).Result;
@@ -364,7 +364,7 @@ namespace TochkaBtcApp.Models.Exc
             }
             catch (Exception e)
             {
-                RLogger.Error(e);
+                Error.Log(e);
             }
         }
 

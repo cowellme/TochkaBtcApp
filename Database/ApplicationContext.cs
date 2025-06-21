@@ -4,7 +4,7 @@ using TochkaBtcApp.Models;
 
 public class ApplicationContext : DbContext
 {
-    private string _connectoinString = "server=127.0.0.1;uid=root;pwd=1234;database=tochka;";
+    private string _connectoinString = "server=127.0.0.1;uid=root;pwd=asde1D#cEC;database=tochka;";
     public ApplicationContext(bool reset = false)
     {
         if (reset)
