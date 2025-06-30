@@ -1,4 +1,6 @@
-﻿namespace TochkaBtcApp.Models
+﻿using TochkaBtcApp.Telegram;
+
+namespace TochkaBtcApp.Models
 {
     public class Error
     {
@@ -8,6 +10,7 @@
 
         public static void Log(Exception exception)
         {
+            TBot.LogError(exception);
             ApplicationContext.SaveError(new Error
             {
                 Message = $"Message: '{exception.Message}' Source:'{exception.Source}'",

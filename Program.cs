@@ -2,6 +2,7 @@ using Blazored.LocalStorage;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using TochkaBtcApp.Components;
+using TochkaBtcApp.Telegram;
 
 namespace TochkaBtcApp
 {
@@ -9,8 +10,8 @@ namespace TochkaBtcApp
     {
         public static void Main(string[] args)
         {
-            var task = Models.Exc.BingX.Checker();
-
+            //var task = Models.Exc.BingX.Checker();
+            TBot.Start("7166269500:AAHrIa_nw0dXi9AfLB2X2IPeAfsD6snjftA");
             var builder = WebApplication.CreateBuilder(args);
 
             //My

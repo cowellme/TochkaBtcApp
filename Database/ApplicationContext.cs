@@ -105,7 +105,6 @@ public class ApplicationContext : DbContext
             return false;
         }
     }
-
     public static List<Config>? GetConfigsByName(string name)
     {
         try
@@ -119,7 +118,6 @@ public class ApplicationContext : DbContext
             return null;
         }
     }
-
     public static List<Config>? GetConfigs()
     {
         try
@@ -139,7 +137,6 @@ public class ApplicationContext : DbContext
         db.Errors.Add(error);
         db.SaveChanges();
     }
-
     public async Task DeleteConfig(int configId, string configName)
     {
         await using var db = new ApplicationContext();
@@ -150,5 +147,13 @@ public class ApplicationContext : DbContext
             db.Configs.Remove(delConfig);
             await db.SaveChangesAsync();
         }
+    }
+
+    public static async Task ClearError()
+    {
+        await using var db = new ApplicationContext();
+        var range = db.Errors.ToList();
+        db.Errors.RemoveRange(range);
+        await db.SaveChangesAsync();
     }
 }

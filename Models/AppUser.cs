@@ -17,5 +17,19 @@
         public bool IsTelegram { get; set; } = false;
         public long TelegramId { get; set; }
         public string Hash { get; set; } = string.Empty;
+
+        public decimal GetBalance()
+        {
+            try
+            {
+
+                return 0;
+            }
+            catch (Exception e)
+            {
+                Error.Log(e);
+                return 0;
+            }
+        }
     }
 }

@@ -3,6 +3,7 @@ using BingX.Net.Enums;
 using BingX.Net.Objects.Models;
 using CryptoExchange.Net.Authentication;
 using TochkaBtcApp.Contollers;
+using TochkaBtcApp.Telegram;
 
 namespace TochkaBtcApp.Models.Exc
 {
@@ -34,7 +35,6 @@ namespace TochkaBtcApp.Models.Exc
                 }
             });
         }
-
         private static BingXRestClient? GetClient(AppUser user)
         {
             try
@@ -51,13 +51,11 @@ namespace TochkaBtcApp.Models.Exc
                 return null;
             }
         }
-
         private static KlineInterval ConvertToLocalKline(GlobalKlineInterval interval)
         {
             var allValues = Enum.GetValues(typeof(KlineInterval)).Cast<KlineInterval>().ToList();
             return allValues.FirstOrDefault(x => (int)x == (int)interval);
         }
-
         private static decimal GetLastPrice(BingXRestClient client, string symbol)
         {
             try
@@ -71,7 +69,6 @@ namespace TochkaBtcApp.Models.Exc
                 return -1;
             }
         }
-
         private static decimal CalculateStopLoss(BingXRestClient client, KlineInterval interval, decimal openPrice, int candlesCount, decimal offsetMinimal, string side)
         {
             var response = 0m;
@@ -100,7 +97,6 @@ namespace TochkaBtcApp.Models.Exc
 
             return response;
         }
-
         private static decimal GetMaximumPriceForCandles(BingXRestClient client, KlineInterval interval, int candlesCount)
         {
             var response = .0m;
@@ -125,7 +121,6 @@ namespace TochkaBtcApp.Models.Exc
 
             return response;
         }
-
         private static List<BingXFuturesKline>? GetLastCandles(BingXRestClient client, string symbol, KlineInterval interval, int candlesCount)
         {
             try
@@ -147,7 +142,6 @@ namespace TochkaBtcApp.Models.Exc
                 return null;
             }
         }
-
         public static decimal CalculateTakeProfit(decimal openPrice, decimal stopLoss, decimal riskRatio, string side)
         {
             var response = .0m;
@@ -165,7 +159,6 @@ namespace TochkaBtcApp.Models.Exc
 
             return response;
         }
-
         public void GetSignal(GlobalKlineInterval globalInterval)
         {
             try
@@ -201,8 +194,6 @@ namespace TochkaBtcApp.Models.Exc
                 Error.Log(e);
             }
         }
-
-
         private static (decimal stopLossPrice, decimal takeProfitPrice, decimal quantity) Calculated(BingXRestClient client, KlineInterval interval, Config config, decimal price)
         {
 
@@ -217,7 +208,6 @@ namespace TochkaBtcApp.Models.Exc
             var response = (stopLossPrice, takeProfitPrice, qty);
             return response;
         }
-
         private static decimal GetQuantity(BingXRestClient client, string symbol, decimal volume)
         {
             try
@@ -246,7 +236,6 @@ namespace TochkaBtcApp.Models.Exc
                 throw;
             }
         }
-
         private static int GetDecimalPlaces(decimal number)
         {
             // Преобразуем число в строку
@@ -284,7 +273,6 @@ namespace TochkaBtcApp.Models.Exc
             }
             return 0;
         }
-
         private static void Buy(AppUser user, KlineInterval interval, Config config)
         {
             try
@@ -332,33 +320,28 @@ namespace TochkaBtcApp.Models.Exc
 
                             if (stopLossOrder.Success)
                             {
-                                _orders.Add(new Order
-                                {
-                                    Api = user.ApiBingx,
-                                    Secret = user.SecretBingx,
-                                    Symbol = _symbolDefault,
-                                    TakeId = takeProfitOrder.Data.OrderId,
-                                    StopId = stopLossOrder.Data.OrderId,
-                                    StopPrice = calculated.stopLossPrice,
-                                    TakePrice = calculated.takeProfitPrice,
-                                    Name = config.Name,
-                                    Exchange = _exchangeName
-                                });
-                                Order.SaveOrders(_orders, _exchangeName);
+                                var e = new Exception($"Сделка открыта!\n\n {DateTime.Now:s}");
+                                TBot.LogError(e, user);
                             }
                             else
                             {
-                                Error.Log(new Exception(stopLossOrder.Error?.Message));
+                                var e = new Exception(stopLossOrder.Error?.Message);
+                                TBot.LogError(e, user);
+                                Error.Log(e);
                             }
                         }
                         else
                         {
-                            Error.Log(new Exception(takeProfitOrder.Error?.Message));
+                            var e = new Exception(takeProfitOrder.Error?.Message);
+                            TBot.LogError(e, user);
+                            Error.Log(e);
                         }
                     }
                     else
                     {
-                        Error.Log(new Exception(buyOrder.Error?.Message));
+                        var e = new Exception(buyOrder.Error?.Message);
+                        TBot.LogError(e, user);
+                        Error.Log(e);
                     }
                 }
             }
@@ -366,6 +349,20 @@ namespace TochkaBtcApp.Models.Exc
             {
                 Error.Log(e);
             }
+        }
+
+        public static decimal GetBalance(string api, string secret)
+        {
+            var client = new BingXRestClient();
+            client.SetApiCredentials(new ApiCredentials(api, secret));
+            var result = client.PerpetualFuturesApi.Account.GetBalancesAsync().Result;
+            if (result.Success)
+            {
+                var balance= result.Data.First().Balance;
+                return balance;
+            }
+
+            return -1;
         }
 
     }

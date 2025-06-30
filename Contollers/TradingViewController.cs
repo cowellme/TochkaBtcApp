@@ -77,8 +77,6 @@ namespace TochkaBtcApp.Contollers
                     return Ok(new { status = "Success", data = alert });
                 }
 
-                
-
                 return Ok(new { status = "Success", data = alert });
             }
             catch (Exception e)

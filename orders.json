@@ -1,1 +1,57 @@
-[{"Symbol":"BTCUSDT","Name":"roma","TakePrice":105230.08,"StopPrice":103721.18,"TakeId":699452647328,"StopId":699452648205},{"Symbol":"BTCUSDT","Name":"roma","TakePrice":107162.57,"StopPrice":103851.94,"TakeId":699461152081,"StopId":699461155115},{"Symbol":"BTCUSDT","Name":"cryptoingener","TakePrice":106721.37,"StopPrice":103851.94,"TakeId":699462604533,"StopId":699462608794}]
+        public async Task<(bool status, string message)> NewUser(User user)
+        {
+            return await Task.Run(() =>
+            {
+                if (Users.Any(x => x.Login == user.Login)) throw new Exception("Данный логин уже используется");
+
+                try
+                {
+                    Users.Add(user);
+                    SaveChangesAsync();
+                    return (true, "Success");
+                }
+                catch (Exception ex)
+                {
+                    return (false, ex.Message);
+                }
+            });
+        }
+
+        public async Task<(bool status, string message)> DeleteUser(User user)
+        {
+            return await Task.Run(() =>
+            {
+                if (!Users.Any(x => x.Login == user.Login)) throw new Exception("Пользователя не существует");
+                
+                try
+                {
+                    Users.Remove(user);
+                    SaveChangesAsync();
+                    return (true, "Success");
+                }
+                catch (Exception ex)
+                {
+                    return (false, ex.Message);
+                }
+            });
+        }
+
+        public async Task<(bool status, string message)> UpdateUser(User user)
+        {
+            return await Task.Run(() =>
+            {
+                if (!Users.Any(x => x.Login == user.Login)) throw new Exception("Пользователя не существует");
+
+                try
+                {
+                    Users.Update(user);
+                    SaveChangesAsync();
+                    return (true, "Success");
+                }
+                catch (Exception ex)
+                {
+                    return (false, ex.Message);
+                }
+            });
+        }
+
