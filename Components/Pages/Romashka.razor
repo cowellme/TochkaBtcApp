@@ -196,20 +196,19 @@ else
         try
         {
             var ath = await authenticatotrTask;
-            var user = new ApplicationContext().Users.FirstOrDefault(x => ath.User.Identity != null 
-                                                                    && x.Name == ath.User.Identity.Name) ?? new AppUser();
+            var user = new ApplicationContext().Users.FirstOrDefault(x => ath.User.Identity != null && x.Name == ath.User.Identity.Name) ?? new AppUser();
 
-            if (!user.IsTelegram)
-            {
-                _action = user.Hash;
-                return;
-            }
-            else
-            {
-                _action = string.Empty;
-            }
+            // if (!user.IsTelegram)
+            // {
+            //     _action = user.Hash;
+            //     return;
+            // }
+            // else
+            // {
+            //     _action = string.Empty;
+            // }
 
-            if (string.IsNullOrEmpty(user.Name)) return;
+            // if (string.IsNullOrEmpty(user.Name)) return;
             var config = new Config
             {
                 Name = user.Name,

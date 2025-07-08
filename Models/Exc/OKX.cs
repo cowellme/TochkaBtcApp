@@ -9,7 +9,7 @@ using OrderSide = OKX.Net.Enums.OrderSide;
 
 namespace TochkaBtcApp.Models.Exc
 {
-    public class OKX : IExchange
+    public class OKX 
     {
 
         private static string _sideDefault = "LONG";
@@ -32,9 +32,9 @@ namespace TochkaBtcApp.Models.Exc
 
                     if (user != null)
                     {
-                        var api = user.ApiOKX;
-                        var secret = user.SecretOKX;
-                        var phrase = user.PhraseOKX;
+                        var api = user.ApiBitUnix;
+                        var secret = user.SecretBitUnix;
+                        var phrase = user.SecretBitUnix;
 
                         if (string.IsNullOrEmpty(api) && string.IsNullOrEmpty(secret) && string.IsNullOrEmpty(phrase)) continue;
 

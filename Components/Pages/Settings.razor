@@ -30,41 +30,16 @@
 
             <div class="container-md w-50">
                 <h3 class="mb-5">Данные аккаунта</h3>
-                <div @onclick="ToggleBinanceVisibility" style="cursor: pointer;">
-                    <p class="h5 mb-3">Binance @(isBinanceVisible ? "↥" : "↧")</p>
-                </div>
-                <div class="@(isBinanceVisible ? "expanded" : "collapsed") binance-block">
-                    <div class="mb-5">
-                        <label class="form-label">Открытый ключ:</label>
-                        <input type="text" @bind="ApiBinance" class="form-control input" />
-                        <label class="form-label">Секретный ключ:</label>
-                        <input type="text" @bind="SecretBinance" class="form-control input" />
-                    </div>
-                </div>
-
-                <div @onclick="ToggleBingxVisibility" style="cursor: pointer;">
-                    <p class="h5 mb-3">Bingx @(isBingxVisible ? "↥" : "↧")</p>
-                </div>
-                <div class="@(isBingxVisible ? "expanded" : "collapsed") binance-block">
-                    <div class="mb-5">
-                        <label class="form-label">Открытый ключ:</label>
-                        <input type="text" @bind="ApiBingx" class="form-control input" />
-                        <label class="form-label">Секретный ключ:</label>
-                        <input type="text" @bind="SecretBingx" class="form-control input" />
-                    </div>
-                </div>
 
                 <div @onclick="ToggleBitGetVisibility" style="cursor: pointer;">
-                    <p class="h5 mb-3">OKX @(isBitGetVisible ? "↥" : "↧")</p>
+                    <p class="h5 mb-3">BitUnix @(isBitGetVisible ? "↥" : "↧")</p>
                 </div>
                 <div class="@(isBitGetVisible ? "expanded" : "collapsed") binance-block">
                     <div class="mb-5">
                         <label class="form-label">Открытый ключ:</label>
-                        <input type="text" @bind="ApiOKX" class="form-control input" />
+                        <input type="text" @bind="ApiBitUnix" class="form-control input" />
                         <label class="form-label">Секретный ключ:</label>
-                        <input type="text" @bind="SecretOKX" class="form-control input" />
-                        <label class="form-label">Парольная фраза:</label>
-                        <input type="text" @bind="PhraseOKX" class="form-control input" />
+                        <input type="text" @bind="SecretBitUnix" class="form-control input" />
                     </div>
                 </div>
 
@@ -209,9 +184,8 @@
                 ApiBingx = user.ApiBingx;
                 SecretBingx = user.SecretBingx;
 
-                ApiOKX = user.ApiOKX;
-                SecretOKX = user.SecretOKX;
-                PhraseOKX = user.PhraseOKX;
+                ApiBitUnix = user.ApiBitUnix;
+                SecretBitUnix = user.SecretBitUnix;
 
                 _positions = Binance.GetPositionsHistory(user);
                 if (_positions != null)
@@ -241,9 +215,9 @@
                     user.SecretBinance = SecretBinance;
                     user.ApiBingx = ApiBingx;
                     user.SecretBingx = SecretBingx;
-                    user.ApiOKX = ApiOKX;
-                    user.SecretOKX = SecretOKX;
-                    user.PhraseOKX = PhraseOKX;
+                    user.ApiBitUnix = ApiBitUnix;
+                    user.SecretBitUnix = SecretBitUnix;
+                    user.SecretBitUnix = SecretBitUnix;
                     ApplicationContext.SaveChanges();
                 }
             }
@@ -269,9 +243,8 @@
     private string? ApiBingx { get; set; }
     private string? SecretBingx { get; set; }
 
-    private string? ApiOKX { get; set; }
-    private string? SecretOKX { get; set; }
-    private string? PhraseOKX { get; set; }
+    private string? ApiBitUnix { get; set; }
+    private string? SecretBitUnix { get; set; }
 
     private void ToggleBinanceVisibility()
     {

@@ -15,66 +15,24 @@ namespace TochkaBtcApp.Contollers
     {
 
         [HttpPost("signal")]
-        public IActionResult Signal([FromBody] dynamic alert)
+        public async Task<IActionResult> Signal([FromBody] dynamic alert)
         {
             try
             {
                 //16.05.2025 6:49:02: Data: {"text": "Buy"}
                 string str = $"Data: {alert}";
-                System.IO.File.AppendAllText("log.tmp", $"{DateTime.Now}: {str}\n");
+                await System.IO.File.AppendAllTextAsync("log.tmp", $"{DateTime.Now}: {str}\n");
 
-                //if (str.Contains("Long 5m Binance"))
-                //{
-                //    var intrval = GlobalKlineInterval.FiveMinutes;
-                //    var exch = new Models.Exc.Binance();
-                //    exch.GetSignal(intrval);
-
-                //    return Ok(new { status = "Success", data = alert });
-                //}
-
-                //if (str.Contains("Long 15m Binance"))
-                //{
-                //    var intrval = GlobalKlineInterval.FifteenMinutes;
-                //    var exch = new Models.Exc.Binance();
-                //    exch.GetSignal(intrval);
-
-                //    return Ok(new { status = "Success", data = alert });
-                //}
-
-                if (str.Contains("Long 5m BingX"))
+                if (str.Contains("Long 5m BitUnix"))
                 {
-                    var intrval = GlobalKlineInterval.FiveMinutes;
-                    var exch = new Models.Exc.BingX();
-                    exch.GetSignal(intrval);
+                    var bitUnix = new BitUnix();
+                    var result = await bitUnix.GetSignal(GlobalKlineInterval.FiveMinutes);
 
-                    return Ok(new { status = "Success", data = alert });
-                }
-
-                if (str.Contains("Long 15m BingX"))
-                {
-                    var intrval = GlobalKlineInterval.FifteenMinutes;
-                    var exch = new Models.Exc.BingX();
-                    exch.GetSignal(intrval);
-
-                    return Ok(new { status = "Success", data = alert });
-                }
-
-                if (str.Contains("Long 1h BingX"))
-                {
-                    var intrval = GlobalKlineInterval.OneHour;
-                    var exch = new Models.Exc.BingX();
-                    exch.GetSignal(intrval);
-
-                    return Ok(new { status = "Success", data = alert });
-                }
-
-                if (str.Contains("Long 4h BingX"))
-                {
-                    var intrval = GlobalKlineInterval.FourHours;
-                    var exch = new Models.Exc.BingX();
-                    exch.GetSignal(intrval);
-
-                    return Ok(new { status = "Success", data = alert });
+                    return Ok(new
+                    {
+                        status = "Success", 
+                        data = result
+                    });
                 }
 
                 return Ok(new { status = "Success", data = alert });
@@ -82,7 +40,7 @@ namespace TochkaBtcApp.Contollers
             catch (Exception e)
             {
                 Error.Log(e);
-                return Ok();
+                return BadRequest(e.Message);
             }
         }
     } 

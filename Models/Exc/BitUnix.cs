@@ -9,33 +9,13 @@ using TochkaBtcApp.Contollers;
 
 namespace TochkaBtcApp.Models.Exc;
 
-public class Binance 
+public class BiyUnix 
 {
-    private static string _exchangeName = "binance";
+    private static string _exchangeName = "bitunix";
     private static string _sideDefault = "LONG";
     private static string _symbolDefault = "BTCUSDT";
-    private static List<Order> _orders = new List<Order>();
     private static List<AppUser> _users = new List<AppUser>();
 
-    public static async Task Checker()
-    {
-        await Task.Run(() =>
-        {
-            _orders = Order.GetOrders(_exchangeName);
-            _users = ApplicationContext.GetUsers();
-            while (true)
-            {
-                Thread.Sleep(1000);
-
-                if (_orders.Count < 1) continue;
-
-                foreach (var order in _orders.ToList())
-                {
-                    if (order.CheckPair()) _orders.Remove(order);
-                }
-            }
-        });
-    }
     private static BinanceRestClient? GetClient(AppUser user)
     {
         try
@@ -75,7 +55,7 @@ public class Binance
                     if (string.IsNullOrEmpty(api) && string.IsNullOrEmpty(secret)) continue;
 
                     var interval = ConvertToLocalKline(globalInterval); 
-                   // Buy(user, interval, config);
+                    Buy(user, interval, config);
                 }
             }
         }
@@ -143,19 +123,7 @@ public class Binance
 
                         if (stopLossOrder.Success)
                         {
-                            _orders.Add(new Order
-                            {
-                                Api = user.ApiBinance,
-                                Secret = user.SecretBinance,
-                                Symbol = _symbolDefault,
-                                TakeId = takeProfitOrder.Data.Id,
-                                StopId = stopLossOrder.Data.Id,
-                                StopPrice = stopLossPrice,
-                                TakePrice = takeProfitPrice,
-                                Name = config.Name,
-                                Exchange = _exchangeName
-                            });
-                            Order.SaveOrders(_orders, _exchangeName);
+                            
                         }
                         else
                         {
@@ -350,7 +318,6 @@ public class Binance
     {
         try
         {
-            return null;
             var client = GetClient(user);
 
             if (client != null)
@@ -364,169 +331,6 @@ public class Binance
             }
             
             return null;
-        }
-        catch (Exception e)
-        {
-            Error.Log(e);
-            return null;
-        }
-    }
-}
-
-public class Order
-{
-    public string Symbol { get; set; }
-    public string Api { get; set; }
-    public string Secret { get; set; }
-    public string Name { get; set; }
-    public decimal TakePrice { get; set; }
-    public decimal StopPrice { get; set; }
-    public long TakeId { get; set; }
-    public long StopId { get; set; }
-    public string Exchange { get; set; }
-
-    public static void SaveOrders(List<Order> orders, string exchange)
-    {
-        var path = Environment.CurrentDirectory + $@"\orders_{exchange}.json";
-        var jsonString = JsonConvert.SerializeObject(orders);
-        File.WriteAllText(path, jsonString);
-    }
-
-    public static List<Order> GetOrders(string exchange)
-    {
-        try
-        {
-            var path = Environment.CurrentDirectory + $@"\orders_{exchange}.json";
-            var jsonString = File.ReadAllText(path);
-            var orders = JsonConvert.DeserializeObject<List<Order>>(jsonString);
-
-            if (orders == null)
-            {
-                orders = new List<Order>();
-                SaveOrders(orders, exchange);
-            }
-
-            return orders;
-        }
-        catch (Exception e)
-        {
-            var orders = new List<Order>();
-            SaveOrders(orders, exchange);
-            return orders;
-        }
-    }
-    public static bool CancelOrder(BinanceRestClient client ,string symbol ,long id)
-    {
-        var result = client.UsdFuturesApi.Trading.CancelOrderAsync(symbol, id).Result;
-
-        if (result.Success)
-        {
-            return true;
-        }
-
-        return false;
-    }
-    public bool CancelSl(BinanceRestClient client)
-    {
-        try
-        {
-            var result = client.UsdFuturesApi.Trading.CancelOrderAsync(Symbol, StopId).Result;
-
-            if (result.Success)
-            {
-                return true;
-            }
-
-            return false;
-        }
-        catch (Exception e)
-        {
-            return false;
-        }
-    }
-    public bool CancelTp(BinanceRestClient client)
-    {
-        try
-        {
-            var result = client.UsdFuturesApi.Trading.CancelOrderAsync(Symbol, TakeId).Result;
-
-            if (result.Success)
-            {
-                return true;
-            }
-
-            return false;
-        }
-        catch (Exception e)
-        {
-            return false;
-        }
-    }
-    public bool CheckPair()
-    {
-        try
-        {
-            var user = ApplicationContext.GetUsers()?.FirstOrDefault(x => x.Name == Name);
-
-            if (user == null) return false;
-
-            var client = GetClient(user);
-
-            if (client == null) return false;
-
-            var result = client.UsdFuturesApi.Trading.GetOpenOrdersAsync(Symbol).Result;
-
-            if (result.Success)
-            {
-                var openOrders = result.Data.ToList();
-
-                var isOpenSl = false;
-                var isOpenTp = false;
-
-                if (openOrders.Count > 0)
-                {
-                    foreach (var order in openOrders)
-                    {
-                        if (order.Id == TakeId) isOpenTp = true;
-                        if (order.Id == StopId) isOpenSl = true;
-                    }
-
-                    if (!isOpenTp) return CancelSl(client);
-                    if (!isOpenSl) return CancelTp(client);
-                }
-            }
-
-            return false;
-        }
-        catch (Exception e)
-        {
-            return false;
-        }
-    }
-    public static void ClearOrders(BinanceRestClient client, string symbol)
-    {
-        var result = client.UsdFuturesApi.Trading.GetOpenOrdersAsync(symbol).Result;
-
-        if (result.Success)
-        {
-            var openOrders = result.Data.ToList();
-
-            foreach (var order in openOrders)
-            {
-                var id = order.Id;
-                CancelOrder(client, symbol, id);
-            }
-        }
-    }
-    private static BinanceRestClient? GetClient(AppUser user)
-    {
-        try
-        {
-            var newClient = new BinanceRestClient();
-
-            newClient.SetApiCredentials(new ApiCredentials(user.ApiBinance, user.SecretBinance));
-
-            return newClient;
         }
         catch (Exception e)
         {

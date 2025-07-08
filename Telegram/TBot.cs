@@ -11,21 +11,33 @@ namespace TochkaBtcApp.Telegram
 {
     public class TBot
     {
-        private static List<AppUser> _users = new List<AppUser>();
-        private static ITelegramBotClient _bot;
-        static public void Start(string token)
+        private static List<AppUser>? _users;
+        private static ITelegramBotClient? _bot;
+        public TBot()
         {
-            var cts = new CancellationTokenSource();
-            var cancellationToken = cts.Token;
-            var receiverOptions = new ReceiverOptions
+            Start();
+        }
+
+        public void Start()
+        {
+            try
             {
-                AllowedUpdates = { },
-            };
-            _bot = new TelegramBotClient(token);
-            _bot.StartReceiving(
-                (botClient, update, cancellationToken1) => HandleUpdateAsync(botClient, update, cancellationToken1),
-                HandleErrorAsync, receiverOptions, cancellationToken);
-            _users = ApplicationContext.GetUsers();
+                var cts = new CancellationTokenSource();
+                var cancellationToken = cts.Token;
+                var receiverOptions = new ReceiverOptions
+                {
+                    AllowedUpdates = { },
+                };
+                _bot = new TelegramBotClient("7166269500:AAHrIa_nw0dXi9AfLB2X2IPeAfsD6snjftA");
+                _bot.StartReceiving(
+                    (botClient, update, cancellationToken1) => HandleUpdateAsync(botClient, update, cancellationToken1),
+                    HandleErrorAsync, receiverOptions, cancellationToken);
+                _users = ApplicationContext.GetUsers();
+            }
+            catch (Exception e)
+            {
+                Error.Log(e);
+            }
         }
 
         private static Task HandleErrorAsync(ITelegramBotClient botClient, Exception ex, HandleErrorSource errorSource, CancellationToken cancellationToken)
@@ -46,60 +58,106 @@ namespace TochkaBtcApp.Telegram
             {
                 await Task.Run(() =>
                 {
-                    if (update.Type == UpdateType.Message) ParseMassege(update);
-                });
+                    if (update.Type == UpdateType.Message) ParseMessage(update);
+                }, cancellationToken);
             }
             catch (Exception e)
             {
-                Console.WriteLine(e);
+                Error.Log(e);
                 throw;
             }
         }
 
-        private static void ParseMassege(Update update)
+        private static async Task ParseMessage(Update update)
         {
             var id = update.Message?.Chat.Id;
             var msg = update.Message?.Text;
-            var keyboard = new ReplyKeyboardMarkup(new[] { new KeyboardButton[] { "Инструкция", "Я уже знаю" } }) { ResizeKeyboard = true };
             if (msg == null || id == null) return;
 
             if (msg.ToLower() == "/clear")
             {
-                ApplicationContext.ClearError();
-                _bot.SendMessage(id, "Успех");
+                await ApplicationContext.ClearError();
+                await _bot.SendMessage(id, "Успех");
             }
 
             if (msg.ToLower() == "/start")
             {
                 var buttons = GetButtons(msg);
-                _bot.SendMessage(id, "Привет!", replyMarkup: buttons);
+                await _bot.SendMessage(id, "Привет!", replyMarkup: buttons);
+            }
+
+            if (msg.ToLower() == "позиции")
+            {
+                try
+                {
+                    var user = _users.FirstOrDefault(x => x.TelegramId == id);
+                    if (user != null)
+                    {
+                        var positions = await Models.Exc.BingX.GetPositions(user.ApiBingx, user.SecretBingx);
+
+                        if (positions != null)
+                        {
+                            if (positions.Count < 1)
+                            {
+                                var message = $"Открытых позиций нет";
+                                await _bot.SendMessage(id, message);
+                            }
+
+                            foreach (var pos in positions)
+                            {
+                                var message = $"Символ: {pos.Symbol} {pos.Side}\n" +
+                                              $"Покупка: {pos.AveragePrice:0.00}\n" +
+                                              $"PNL: {pos.UnrealizedPnlRatio:0.0000}";
+                                await _bot.SendMessage(id, message);
+                            }
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    Error.Log(e);
+                }
             }
 
             if (msg.ToLower() == "баланс")
             {
-                var user = _users.FirstOrDefault(x => x.TelegramId == id);
-                if (user != null)
+                try
                 {
-                    decimal balance = Models.Exc.BingX.GetBalance(user.ApiBingx, user.SecretBingx);
-                    
-                    if (balance > 0)
+                    var user = _users.FirstOrDefault(x => x.TelegramId == id);
+                    if (user != null)
                     {
-                        _bot.SendMessage(id, $"Баланс (Futures): {balance:0.00}");
+                        decimal balance = Models.Exc.BingX.GetBalance(user.ApiBingx, user.SecretBingx);
+
+                        if (balance > 0)
+                        {
+                            _bot.SendMessage(id, $"Баланс (Futures): $ {balance:0.00}");
+                        }
                     }
+                }
+                catch (Exception e)
+                {
+                    Error.Log(e);
                 }
             }
         }
 
         public static void LogError(Exception e, AppUser? appUser = null)
         {
+            var message = e.Message;
+
+            if (message.Contains("Insufficient"))
+            {
+                message = $@"Недостаточно маржи для открытия сделки";
+            }
+
             if (appUser != null)
             {
 
-                _bot.SendMessage(appUser.TelegramId, $"{e.Message}");
+                _bot.SendMessage(appUser.TelegramId, $"{message}");
                 return;
             }
 
-            _bot.SendMessage(6375432333, $"{e.Message}");
+            _bot.SendMessage(6375432333, $"{message}");
         }
 
         private static ReplyKeyboardMarkup GetButtons(string keyboard)
@@ -109,7 +167,7 @@ namespace TochkaBtcApp.Telegram
             switch (keyboard)
             {
                 case "/start":
-                    buttons = new ReplyKeyboardMarkup(new[] { new KeyboardButton[] { "Баланс" } }) { ResizeKeyboard = true };
+                    buttons = new ReplyKeyboardMarkup(new[] { new KeyboardButton[] { "Баланс", "Позиции" } }) { ResizeKeyboard = true };
                     return buttons;
 
                 default: return buttons;

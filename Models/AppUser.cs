@@ -11,9 +11,8 @@
         public string SecretBinance { get; set; } = string.Empty;
         public string ApiBingx { get; set; } = string.Empty;
         public string SecretBingx { get; set; } = string.Empty;
-        public string ApiOKX { get; set; } = string.Empty;
-        public string SecretOKX { get; set; } = string.Empty;
-        public string PhraseOKX { get; set; } = string.Empty;
+        public string ApiBitUnix { get; set; } = string.Empty;
+        public string SecretBitUnix { get; set; } = string.Empty;
         public bool IsTelegram { get; set; } = false;
         public long TelegramId { get; set; }
         public string Hash { get; set; } = string.Empty;

@@ -24,4 +24,8 @@
     <Folder Include="Interface\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="Telegram\TBot.cs" />
+  </ItemGroup>
+
 </Project>

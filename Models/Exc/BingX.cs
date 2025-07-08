@@ -2,12 +2,14 @@
 using BingX.Net.Enums;
 using BingX.Net.Objects.Models;
 using CryptoExchange.Net.Authentication;
+using Microsoft.AspNetCore.DataProtection;
+using TochkaBtcApp.Components;
 using TochkaBtcApp.Contollers;
 using TochkaBtcApp.Telegram;
 
 namespace TochkaBtcApp.Models.Exc
 {
-    public class BingX : IExchange
+    public class BingX 
     {
         private static string _exchangeName = "bingx";
         private static string _sideDefault = "LONG";
@@ -365,5 +367,33 @@ namespace TochkaBtcApp.Models.Exc
             return -1;
         }
 
+        public static async Task<List<BingXPosition>?> GetPositions(string api, string secret, string symbol = "BTC-USDT")
+        {
+            return await Task.Run(() =>
+            {
+                try
+                {
+
+
+                    var client = new BingXRestClient();
+                    client.SetApiCredentials(new ApiCredentials(api, secret));
+                    var result = client.PerpetualFuturesApi.Trading.GetPositionsAsync(symbol).Result;
+                    if (result.Success)
+                    {
+                        var balance = result.Data.ToList();
+                        return balance;
+                    }
+
+                    return null;
+
+                }
+                catch (Exception e)
+                {
+                    Error.Log(e);
+                    return null;
+                }
+            });
+            
+        }
     }
 }

@@ -148,7 +148,6 @@ public class ApplicationContext : DbContext
             await db.SaveChangesAsync();
         }
     }
-
     public static async Task ClearError()
     {
         await using var db = new ApplicationContext();

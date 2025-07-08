@@ -1,110 +1,86 @@
-﻿using Binance.Net.Enums;
-using CryptoExchange.Net.Attributes;
+﻿using CryptoExchange.Net.Attributes;
+using CryptoExchange.Net.Converters.SystemTextJson;
+using Newtonsoft.Json;
 
-namespace TochkaBtcApp.Models.Exc
+namespace TochkaBtcApp.Bitunix.Enums
 {
-    public interface IExchange
-    {
-        public Task<string> GetSignal(GlobalKlineInterval interval);
-    }
-
-    public enum GlobalKlineInterval : int
+    [JsonConverter(typeof(EnumConverter<KlineInterval>))]
+    public enum KlineInterval
     {
         /// <summary>
-        /// 1m
+        /// One minute
         /// </summary>
         [Map("1m")]
         OneMinute = 60,
-
         /// <summary>
-        /// 3m
+        /// Three minutes
         /// </summary>
         [Map("3m")]
         ThreeMinutes = 60 * 3,
-
         /// <summary>
-        /// 5m
+        /// Five minutes
         /// </summary>
         [Map("5m")]
         FiveMinutes = 60 * 5,
-
         /// <summary>
-        /// 15m
+        /// Fifteen minutes
         /// </summary>
         [Map("15m")]
         FifteenMinutes = 60 * 15,
-
         /// <summary>
-        /// 30m
+        /// Thirty minutes
         /// </summary>
         [Map("30m")]
         ThirtyMinutes = 60 * 30,
-
         /// <summary>
-        /// 1H
+        /// One hour
         /// </summary>
-        [Map("1H")]
+        [Map("1h")]
         OneHour = 60 * 60,
-
         /// <summary>
-        /// 2H
+        /// Two hours
         /// </summary>
-        [Map("2H")]
+        [Map("2h")]
         TwoHours = 60 * 60 * 2,
-
         /// <summary>
-        /// 4H
+        /// Four hours
         /// </summary>
-        [Map("4H")]
+        [Map("4h")]
         FourHours = 60 * 60 * 4,
-
         /// <summary>
-        /// 6H
+        /// Six hours
         /// </summary>
-        [Map("6H")]
+        [Map("6h")]
         SixHours = 60 * 60 * 6,
-
         /// <summary>
-        /// 12H
+        /// Eight hours
         /// </summary>
-        [Map("12H")]
+        [Map("8h")]
+        EightHours = 60 * 60 * 8,
+        /// <summary>
+        /// Twelve hours
+        /// </summary>
+        [Map("12h")]
         TwelveHours = 60 * 60 * 12,
-
         /// <summary>
-        /// 1D
+        /// One day
         /// </summary>
-        [Map("1D")]
+        [Map("1d")]
         OneDay = 60 * 60 * 24,
-
         /// <summary>
-        /// 1W
+        /// Three days
         /// </summary>
-        [Map("1W")]
-        OneWeek = 60 * 60 * 24 * 7,
-
+        [Map("3d")]
+        ThreeDay = 60 * 60 * 24 * 3,
         /// <summary>
-        /// 1M
+        /// One week
+        /// </summary>
+        [Map("1w")]
+        OneWeek = 60 * 60 * 24 * 7,
+        /// <summary>
+        /// One month
         /// </summary>
         [Map("1M")]
-        OneMonth = 60 * 60 * 24 * 30,
-
-        /// <summary>
-        /// 3M
-        /// </summary>
-        [Map("3M")]
-        ThreeMonths = 60 * 60 * 24 * 90,
-
-        /// <summary>
-        /// 6M
-        /// </summary>
-        [Map("6M")]
-        SixMonths = 60 * 60 * 24 * 180,
-
-        /// <summary>
-        /// 1Y
-        /// </summary>
-        [Map("1Y")]
-        OneYear = 60 * 60 * 24 * 365,
-
+        OneMonth = 60 * 60 * 24 * 30
     }
 }

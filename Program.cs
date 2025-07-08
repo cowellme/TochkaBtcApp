@@ -1,13 +1,11 @@
-using Blazored.LocalStorage;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.DataProtection;
-using TochkaBtcApp.Components;
 using TochkaBtcApp.Telegram;
 
 namespace TochkaBtcApp
 {
     public class Program
     {
+        private static TBot? _tBot;
         public static void Main(string[] args)
         {
             //var task = Models.Exc.BingX.Checker();
@@ -25,6 +23,8 @@ namespace TochkaBtcApp
                         .AllowAnyHeader());
             });
             builder.Services.AddSingleton<ApplicationContext>();
+            builder.Services.AddSingleton<TBot>();
+            _tBot = new TBot();
             builder.Services.AddHttpContextAccessor();
             builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(
                 options =>
@@ -59,7 +59,7 @@ namespace TochkaBtcApp
             app.UseStaticFiles();
             app.UseAntiforgery();
 
-            app.MapRazorComponents<App>()
+            app.MapRazorComponents<Components.App>()
                 .AddInteractiveServerRenderMode();
 
             app.UseSwagger();
@@ -67,7 +67,6 @@ namespace TochkaBtcApp
 
             app.MapControllers();
             app.Run();
-            var dd = " fs";
         }
     }
 }
