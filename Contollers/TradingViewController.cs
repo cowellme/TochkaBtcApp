@@ -34,6 +34,39 @@ namespace TochkaBtcApp.Contollers
                         data = result
                     });
                 }
+                if (str.Contains("Long 15m BitUnix"))
+                {
+                    var bitUnix = new BitUnix();
+                    var result = await bitUnix.GetSignal(GlobalKlineInterval.FifteenMinutes);
+
+                    return Ok(new
+                    {
+                        status = "Success",
+                        data = result
+                    });
+                }
+                if (str.Contains("Long 1h BitUnix"))
+                {
+                    var bitUnix = new BitUnix();
+                    var result = await bitUnix.GetSignal(GlobalKlineInterval.OneHour);
+
+                    return Ok(new
+                    {
+                        status = "Success",
+                        data = result
+                    });
+                }
+                if (str.Contains("Long 4h BitUnix"))
+                {
+                    var bitUnix = new BitUnix();
+                    var result = await bitUnix.GetSignal(GlobalKlineInterval.FourHours);
+
+                    return Ok(new
+                    {
+                        status = "Success",
+                        data = result
+                    });
+                }
 
                 return Ok(new { status = "Success", data = alert });
             }

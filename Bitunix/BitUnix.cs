@@ -309,13 +309,7 @@ public class BitUnix : IExchange
                 orderType = BitUnixOrderType.Market,
                 qty = quantity.ToString(CultureInfo.InvariantCulture),
                 tpPrice = tpPrice.ToString(CultureInfo.InvariantCulture),
-                //tpStopType = "LAST_PRICE",
-                //tpOrderType = "MARKET",
-                //tpOrderPrice = "MARKET",
                 slPrice = slPrice.ToString(CultureInfo.InvariantCulture),
-                //slStopType = "LAST_PRICE",
-                //slOrderType = "MARKET",
-                //slOrderPrice = "MARKET",
             };
 
             var result = await PlaceOrder(order, user);

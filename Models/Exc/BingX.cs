@@ -17,26 +17,6 @@ namespace TochkaBtcApp.Models.Exc
         private static List<Order> _orders = new List<Order>();
         private static List<AppUser> _users = new List<AppUser>();
 
-
-        public static async Task Checker()
-        {
-            await Task.Run(() =>
-            {
-                _orders = Order.GetOrders(_exchangeName);
-                _users = ApplicationContext.GetUsers();
-                while (true)
-                {
-                    Thread.Sleep(1000);
-
-                    if (_orders.Count < 1) continue;
-
-                    foreach (var order in _orders.ToList())
-                    {
-                        if (order.CheckPair()) _orders.Remove(order);
-                    }
-                }
-            });
-        }
         private static BingXRestClient? GetClient(AppUser user)
         {
             try
