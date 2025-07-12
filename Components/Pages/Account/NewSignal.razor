@@ -1,0 +1,99 @@
+﻿@page "/new-signal"
+@inject IHttpContextAccessor HttpContextAccessor
+@inject NavigationManager Navigation
+
+<div class="container-sm w-100 p-4 mt-3 app-font" style="background: #343447; border-radius: 15px;">
+   
+    <div class="mb-3">
+        <label class="form-label">Выбирете биржу:</label>
+        <select class="form-select input" @bind="@_selectedExchange">
+            <option selected value="@AllExchange[0]">@AllExchange[0]</option>
+            @foreach (var exchange in AllExchange.Skip(1))
+            {
+                <option value="@exchange">@exchange</option>
+            }
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Выбирете токен:</label>
+        <select class="form-select input" @bind="@_selectedToken">
+            @foreach (var token in AllPairs)
+            {
+                <option value="@token">@token</option>
+            }
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">5. Выбор ТФ (таймфрейм)</label>
+        <select class="form-select input" @bind="@_selectedTimeFrame">
+            <option selected disabled>Выберите таймфрейм</option>
+            <option value="FiveMinutes">5 минут</option>
+            <option value="FifteenMinutes">15 минут</option>
+            <option value="OneHour">1 час</option>
+            <option value="FourHours">4 часа</option>
+        </select>
+    </div>
+</div>
+
+<div class="container-sm w-100 p-4 mt-3 app-font" style="background: #343447; border-radius: 15px;">
+    <span>Ссылка: @GetDomain()</span><br /><br />
+    <span>Шифровка: @Crypto.Decrypt(GetDomain(), "ggrasdff")</span>
+</div>
+
+<div class="container-sm w-100 p-4 mt-3 app-font" style="background: #343447; border-radius: 15px;">
+    <div class="d-flex gap-3 app-font">
+        <button class="btn btn-primary save-button" style="floar: left;">
+            Сохранить
+        </button>
+    </div>
+</div>
+
+<style>
+    .save-button {
+        background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+        border: none;
+        border-radius: 8px;
+        padding: 10px 20px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+        .save-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .save-button:active {
+            transform: translateY(0);
+        }
+
+    .input {
+        font-weight: 600;
+        background: #33373f;
+        border-color: #12242e;
+        color: #c8c8c7;
+    }
+</style>
+
+
+
+@code {
+    
+    private string _selectedExchange = "Bitunix";
+    private string _selectedToken = "BTC";
+    private string _selectedTimeFrame = "FiveMinutes";
+    private List<string> AllPairs = new() { "BTC", "LTC", "ZEE", "XRP" };
+    private List<string> AllExchange = new() {"Bitunix", "BingX"};
+    
+    public string GetDomain()
+    {
+        var str = $"{_selectedExchange}-{_selectedToken}-{_selectedTimeFrame}";
+        
+        var hash = Crypto.Encrypt(str, "ggrasdff");
+        var domain = new Uri(Navigation.BaseUri).GetLeftPart(UriPartial.Authority) + @"/hsignal/" + hash;
+        return hash;
+    }
+}

@@ -14,30 +14,26 @@ else
 {
     if (!string.IsNullOrEmpty(_action))
     {
-        <div style="position: absolute; width: max-content; height: max-content; background: green; padding: 10px; border-radius: 5px; left: 50%; transform: translate(-50%, 0)">
-            <p class="h-5">Перейдите по ссылке!</p>
+        <div style="position: absolute; width: max-content; height: max-content; background: #94d0b4; padding: 10px; border-radius: 10px; left: 50%; transform: translate(-50%, 0)">
+            <p class="h-5 app-font">Перейдите по ссылке!</p>
             <a style="color: aliceblue" target="_blank" href="https://t.me/RomashkaCryptoBot?start=@_action">Перейти</a>
         </div>
     }
 
     if (!string.IsNullOrEmpty(_message))
     {
-        //https://t.me/RomashkaCryptoBot?start=
-        //https://t.me/bubvpn_bot?start=ref_
-        <div style="position: absolute; 
-                    width: max-content; 
-                    height: max-content; 
-                    background: green; 
-                    padding: 10px; 
-                    border-radius: 5px; left: 50%;
-                    transform: translate(-50%, 0)">
-            <span style="color: aliceblue">@_message</span>
+        <div style="position: absolute; width: max-content; height: max-content; background: #94d0b4; padding: 30px; padding-bottom: 10px; padding-top: 10px; border-radius: 8px; left: 50%; transform: translate(-50%, 100px)">
+            <span style="color: #00190d; font-weight: 600;">@_message</span>
         </div>
     }
-    <div class="container-sm w-50">
-        <h3 class="mb-3">Romashka</h3>
-        <p class="h5 mb-5">@_user?.Name</p>
 
+    <div class="container-sm w-100 mt-3 p-0">
+        <a class=" nav-link text-white btn app-font m-0 pb-3 pt-3" href="/new-signal" style="background: #0088CC; border-radius: 16px; w font-weight: 600;">
+            Добавить сигнал
+        </a>
+    </div>
+
+    <div class="container-sm w-100 p-4 mt-3 app-font" style="background: #343447; border-radius: 15px;">
         <div class="mb-3">
             <label class="form-label">1. Количество свечей для стопа, шт.</label>
             <input type="text" class="form-control input" value="@_candlesCount" @onchange="CountCandlesChanger" />
@@ -66,34 +62,34 @@ else
                 <option value="FourHours">4 часа</option>
             </select>
         </div>
-
-        <button class="btn btn-primary save-button mb-3" @onclick="() => SaveConfig()">
-            <i class="fas fa-save me-2"></i> Сохранить
-        </button>
-
-        @if (SavedConfigs.Count > 0)
-        {
-            foreach (var config in SavedConfigs)
-            {
-                <div class="card mb-2 p-1" style="background: #0c0c0c">
-                    <div class="card-body">
-                        <span class=""><b>ТФ:</b> @config.TimeFrame</span>
-                        <br>
-                        <span class=""><b>Кол-во свечей:</b> @config.CandlesCount</span>
-                        <br>
-                        <span class=""><b>Отступ от мин.:</b> @config.OffsetMinimal %</span>
-                        <br>
-                        <span class=""><b>Риск на сделку:</b> @config.Risk $</span>
-                        <br>
-                        <span class=""><b>Коэф. риска: </b>@config.RiskRatio</span>
-                    </div>
-                    <div class="card-header h4 d-flex justify-content-between align-items-center">
-                        <button class="btn btn-danger btn-sm" @onclick="() => DeleteConfig(config.Id, config.Name)">Удалить</button>
-                    </div>
-                </div>  
-            }
-        }
+        <div class="d-flex gap-3 app-font">
+            <button class="btn btn-primary save-button" style="floar: left;" @onclick="() => SaveConfig()">Сохранить
+            </button>
+        </div>
     </div>
+    
+    @if (SavedConfigs.Count > 0)
+    {
+        foreach (var config in SavedConfigs)
+        {
+            <div class="container-sm w-100 p-2 pb-3 mt-3 app-font" style="background: #343447; border-radius:15px;">
+                <div class="card-body">
+                    <span class=""><b>ТФ:</b> @config.TimeFrame</span>
+                    <br>
+                    <span class=""><b>Кол-во свечей:</b> @config.CandlesCount</span>
+                    <br>
+                    <span class=""><b>Отступ от мин.:</b> @config.OffsetMinimal %</span>
+                    <br>
+                    <span class=""><b>Риск на сделку:</b> @config.Risk $</span>
+                    <br>
+                    <span class=""><b>Коэф. риска: </b>@config.RiskRatio</span>
+                </div>
+                <div class="card-header h4 d-flex justify-content-between align-items-center">
+                    <button class="nav-link text-white btn btn-danger px-3" style="border-radius: 5px; font-weight: 600;" @onclick="() => DeleteConfig(config.Id, config.Name)">Удалить</button>
+                </div>
+            </div>  
+        }
+    }
 
     <style>
         .save-button {
@@ -139,9 +135,9 @@ else
     
     private string _selectedTimeFrame = "FiveMinutes";
     private int _candlesCount = 5;
-    private double _offsetMinimal = 0.002;
+    private double _offsetMinimal = 0.2;
     private double _riskRatio = 3;
-    private double _risk = 100;
+    private double _risk = 3;
     private AppUser? _user = null;
 
     private List<Config> SavedConfigs = new List<Config>();
@@ -151,27 +147,34 @@ else
         var value = obj.Value?.ToString();
         if (int.TryParse(value, out var result)) _candlesCount = result;
     }
+
     private void CountStopLossChanger(ChangeEventArgs obj)
     {
         var value = obj.Value?.ToString();
         if (double.TryParse(value, out var result)) _offsetMinimal = result;
     }
+
     private void CountRiskRatioChanger(ChangeEventArgs obj)
     {
         var value = obj.Value?.ToString();
         if (double.TryParse(value, out var result)) _riskRatio = result;
     }
+
     private void CountProfitChanger(ChangeEventArgs obj)
     {
         var value = obj.Value?.ToString();
         if (double.TryParse(value, out var result)) _risk = result;
     }
 
-    private async Task ViewMessage(string text)
+    public async Task ViewMessage(string message)
     {
-        _message = text;
-        await Task.Delay(1000);
+        _message += message + "\n";
+        StateHasChanged();
+
+        await Task.Delay(2000); // Ждем 2 секунды
+
         _message = string.Empty;
+        StateHasChanged();
     }
 
     protected override async Task OnInitializedAsync()

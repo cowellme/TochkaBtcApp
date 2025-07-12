@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using OKX.Net.Clients;
 using OKX.Net.Enums;
 using OKX.Net.Objects.Market;
+using TochkaBtcApp.App.Logger;
 using TochkaBtcApp.Models;
 using TochkaBtcApp.Models.Exc;
 using OrderSide = OKX.Net.Enums.OrderSide;
@@ -20,53 +21,38 @@ namespace TochkaBtcApp.Contollers
             try
             {
                 //16.05.2025 6:49:02: Data: {"text": "Buy"}
-                string str = $"Data: {alert}";
-                await System.IO.File.AppendAllTextAsync("log.tmp", $"{DateTime.Now}: {str}\n");
+                string str = $"{DateTime.Now:g}: {alert}";
+                IExchange? exchange= null;
+                GlobalKlineInterval? interval = null;
 
                 if (str.Contains("Long 5m BitUnix"))
                 {
-                    var bitUnix = new BitUnix();
-                    var result = await bitUnix.GetSignal(GlobalKlineInterval.FiveMinutes);
-
-                    return Ok(new
-                    {
-                        status = "Success", 
-                        data = result
-                    });
+                    exchange = new BitUnix();
+                    interval = GlobalKlineInterval.FiveMinutes;
                 }
                 if (str.Contains("Long 15m BitUnix"))
                 {
-                    var bitUnix = new BitUnix();
-                    var result = await bitUnix.GetSignal(GlobalKlineInterval.FifteenMinutes);
-
-                    return Ok(new
-                    {
-                        status = "Success",
-                        data = result
-                    });
+                    exchange = new BitUnix(); 
+                    interval = GlobalKlineInterval.FifteenMinutes;
                 }
                 if (str.Contains("Long 1h BitUnix"))
                 {
-                    var bitUnix = new BitUnix();
-                    var result = await bitUnix.GetSignal(GlobalKlineInterval.OneHour);
-
-                    return Ok(new
-                    {
-                        status = "Success",
-                        data = result
-                    });
+                    exchange = new BitUnix(); 
+                    interval = GlobalKlineInterval.OneHour;
                 }
                 if (str.Contains("Long 4h BitUnix"))
                 {
-                    var bitUnix = new BitUnix();
-                    var result = await bitUnix.GetSignal(GlobalKlineInterval.FourHours);
-
-                    return Ok(new
-                    {
-                        status = "Success",
-                        data = result
-                    });
+                    exchange = new BitUnix(); 
+                    interval = GlobalKlineInterval.FourHours;
                 }
+
+                if (exchange != null && interval != null)
+                {
+                    var result = await exchange.GetSignal((GlobalKlineInterval)interval);
+                    return Ok(new { status = "Success", data = result });
+                }
+
+                await Logger.WriteLog(str);
 
                 return Ok(new { status = "Success", data = alert });
             }

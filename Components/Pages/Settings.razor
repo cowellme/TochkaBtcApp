@@ -14,39 +14,57 @@
         }
         else
         {
-
-            if (!string.IsNullOrEmpty(_message))
+            if (!TelegramId)
             {
-                <div style="position: absolute; 
-                            width: max-content; 
-                            height: max-content; 
-                            background: green; 
-                            padding: 10px; 
-                            border-radius: 5px; left: 50%;
-                            transform: translate(-50%, 0)">
-                    <span style="color: aliceblue">@_message</span>
+                <div class="container-sm w-100 mt-3 p-0">
+                    <a class=" nav-link text-white btn app-font m-0 pb-3 pt-3" href="https://t.me/OrganizeParty_bot" style="background: #0088CC; border-radius: 16px; w font-weight: 600;">
+                        Telegram Bot
+                    </a>
                 </div>
             }
-
-            <div class="container-md w-50">
-                <h3 class="mb-5">Данные аккаунта</h3>
-
-                <div @onclick="ToggleBitGetVisibility" style="cursor: pointer;">
-                    <p class="h5 mb-3">BitUnix @(isBitGetVisible ? "↥" : "↧")</p>
+            if (!string.IsNullOrEmpty(_message))
+            {
+                <div style="position: absolute; width: max-content; height: max-content; background: #94d0b4; padding: 30px; padding-bottom: 10px; padding-top: 10px; border-radius: 8px; left: 50%; transform: translate(-50%, 100px)">
+                    <span style="color: #00190d; font-weight: 600;">@_message</span>
+                </div>
+            }
+            
+            <div class="container-sm w-100 p-4 mt-3 app-font" 
+                 style="background: #343447; border-radius: 15px;">
+                <div @onclick="ToggleBitGetVisibility" 
+                     style="cursor: pointer;">
+                    <p class="h5 m-0">Bitunix @(isBitGetVisible ? "↥" : "↧")</p>
                 </div>
                 <div class="@(isBitGetVisible ? "expanded" : "collapsed") binance-block">
-                    <div class="mb-5">
-                        <label class="form-label">Открытый ключ:</label>
-                        <input type="text" @bind="ApiBitUnix" class="form-control input" />
-                        <label class="form-label">Секретный ключ:</label>
-                        <input type="text" @bind="SecretBitUnix" class="form-control input" />
-                    </div>
-                </div>
+                    <label class="form-label mt-3">Открытый ключ:</label>
+                    <input type="text" @bind="ApiBitUnix" class="form-control input mb-3"/>
+                    <label class="form-label">Секретный ключ:</label>
+                    <input type="text" @bind="SecretBitUnix" class="form-control input"/>
 
-                <button class="btn btn-primary save-button" @onclick="SaveSettings">
-                    <i class="fas fa-save me-2"></i> Сохранить
-                </button>
+                </div>
             </div>
+
+            <div class="container-sm w-100 p-4 mt-3" style="background: #343447; border-radius: 15px;">
+
+                <div @onclick="ToggleBingxVisibility" style="cursor: pointer;">
+                    <p class="h5 m-0">Bingx @(isBingxVisible ? "↥" : "↧")</p>
+                </div>
+                <div class="@(isBingxVisible ? "expanded" : "collapsed") binance-block">
+                    <label class="form-label mt-3">Открытый ключ:</label>
+                    <input type="text" @bind="ApiBingx" class="form-control input mb-3" />
+                    <label class="form-label">Секретный ключ:</label>
+                    <input type="text" @bind="SecretBingx" class="form-control input" />
+                </div>
+            </div>
+
+            <div class="container-sm w-100 p-0">
+                <div class="d-flex justify-content-end mt-3" style="border-radius: 5px;">
+                    <button class="btn btn-primary save-button" @onclick="() => SaveSettings()">
+                        Сохранить
+                    </button>
+                </div>
+            </div>
+            
             
             @if (_positions != null)
             {
@@ -108,6 +126,14 @@
                 </div>
             }
             
+            <div class="container-sm w-100 p-0">
+                <div class="d-flex gap-2 w-50">
+                    <a class=" nav-link text-white btn btn-danger px-3 app-font  gap-2" href="logout" style="border-radius: 8px; w font-weight: 600;">
+                        Выход
+                    </a>
+                </div>
+            </div>
+            
         }
     </Authorized>
 </AuthorizeView>
@@ -166,7 +192,19 @@
 
     private decimal _allPnl = 0;
     private List<BinanceFuturesUsdtTrade>? _positions;
-    private string _message = string.Empty; 
+    private string _message;
+
+    public async Task ViewMessage(string message)
+    {
+        _message = message;
+        StateHasChanged();
+
+        await Task.Delay(2000); // Ждем 2 секунды
+
+        _message = string.Empty;
+        StateHasChanged();
+    }
+
     string pas = string.Empty;
 
     protected override async Task OnInitializedAsync()
@@ -175,7 +213,8 @@
 
         if (ath.User.Identity != null)
         {
-            var user = ApplicationContext.Users.FirstOrDefault(x => x.Name == ath.User.Identity.Name);
+            using var ctx = new ApplicationContext();
+            var user = ctx.Users.FirstOrDefault(x => x.Name == ath.User.Identity.Name);
             if (user != null)
             {
                 ApiBinance = user.ApiBinance;
@@ -187,6 +226,7 @@
                 ApiBitUnix = user.ApiBitUnix;
                 SecretBitUnix = user.SecretBitUnix;
 
+                TelegramId = user.IsTelegram;
                 _positions = Binance.GetPositionsHistory(user);
                 if (_positions != null)
                 {
@@ -230,12 +270,6 @@
         }
     }
 
-    private async Task ViewMessage(string text)
-    {
-        _message = text;
-        await Task.Delay(3000);
-        _message = string.Empty;
-    }
 
     private string? ApiBinance { get; set; }
     private string? SecretBinance { get; set; }
@@ -245,6 +279,7 @@
 
     private string? ApiBitUnix { get; set; }
     private string? SecretBitUnix { get; set; }
+    private bool TelegramId { get; set; }
 
     private void ToggleBinanceVisibility()
     {

@@ -5,15 +5,20 @@
     
     <!-- Основное содержимое, которое будет под меню -->
     <main class="flex-grow-1">
+        <div class="container-fluid content app-font" style="background-color: #171d26">
         <AuthorizeView>
             <NotAuthorized>
-                <div class="card w-50 container-md pt-3 mt-5" style="background: #2e3a4c">
-                    <div class="card-header">
-                        <p class="h3 text-center fw-bolder">Добро пожаловать!</p>
+                <div class="collapse d-flex justify-content-between align-items-center ">
+                    <!-- Левая часть (ссылки) -->
+                    <div class="d-flex gap-3">
+                        <a class="nav-link text-white" href="#">О нас</a>
                     </div>
-                    <div class="card-body text-center p-5">
-                        <a class="mb-3 nav-link btn btn-info text-decoration-none text-white" href="login" style="color: white !important; font-family: sans-serif;">Вход</a>
-                        <a class="nav-link btn btn-primary text-decoration-none text-white" href="sign-up" style="color: white !important; font-family: sans-serif;">Регистрация</a>
+
+                    <!-- Правая часть (Logout) -->
+                    <div>
+                        <a class="nav-link text-white btn btn-primary" href="login" style="border-radius: 5px; font-weight: 600;">
+                            Вход
+                        </a>
                     </div>
                 </div>
             </NotAuthorized>
@@ -22,7 +27,7 @@
                 
             </Authorized>
         </AuthorizeView>
-        <div class="container-fluid content px-4">
+        
             @Body
         </div>
     </main>

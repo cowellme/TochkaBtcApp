@@ -6,6 +6,8 @@ namespace TochkaBtcApp.Models.Exc
     public interface IExchange
     {
         public Task<string> GetSignal(GlobalKlineInterval interval);
+        //public Task<string> GetLastPriceAsync(string symbol);
+
     }
 
     public enum GlobalKlineInterval : int

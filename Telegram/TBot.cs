@@ -42,7 +42,7 @@ namespace TochkaBtcApp.Telegram
 
         private static Task HandleErrorAsync(ITelegramBotClient botClient, Exception ex, HandleErrorSource errorSource, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            return Task.Run(() => Error.Log(ex), cancellationToken);
         }
 
         /// <summary>

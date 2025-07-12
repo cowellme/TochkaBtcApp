@@ -53,3 +53,52 @@ h1:focus {
 .darker-border-checkbox.form-check-input {
     border-color: #929292;
 }
+
+.app-font {
+    font-family: "Montserrat", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 500;
+    font-style: normal;
+}
+.save-button {
+    background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+    .save-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .save-button:active {
+        transform: translateY(0);
+    }
+
+.input {
+    font-weight: 600;
+    background: #33373f;
+    border-color: #12242e;
+    color: #c8c8c7;
+}
+
+.binance-block {
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.collapsed {
+    max-height: 0;
+    opacity: 0;
+    margin-bottom: 0 !important;
+}
+
+.expanded {
+    max-height: 500px;
+    /* Достаточно для содержимого */
+    opacity: 1;
+}
