@@ -10,7 +10,7 @@ public static class Crypto
     private const int Iterations = 10000;
     private const int KeySize = 32;
 
-    public static string Encrypt(string plainText, string password)
+    public static string Encrypt(string plainText, string password = "asdlmfmas")
     {
         byte[] salt = GenerateRandomSalt();
         byte[] key = GenerateKey(password, salt);
@@ -39,7 +39,7 @@ public static class Crypto
         }
     }
 
-    public static string Decrypt(string encryptedText, string password)
+    public static string Decrypt(string encryptedText, string password = "asdlmfmas")
     {
         // Восстанавливаем Base64 (добавляем обратно '=')
         string base64 = RestoreBase64(encryptedText);

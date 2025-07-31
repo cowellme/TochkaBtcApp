@@ -1,56 +1,311 @@
 ﻿@page "/new-signal"
-@inject IHttpContextAccessor HttpContextAccessor
+@using TochkaBtcApp.Models
+@using TochkaBtcApp.Contollers
+@using TochkaBtcApp.Models.Exc
+@using Newtonsoft.Json
+@inject ApplicationContext ApplicationContext
 @inject NavigationManager Navigation
+@inject IJSRuntime jsRuntime
+@rendermode InteractiveServer
 
+@if (_messageError != string.Empty)
+{
+    <div class="modal fade show d-block app-font" style="border-width: 2px;border-radius: 16px;">
+        <div class="modal-dialog modal-dialog-centered" style="border-width: 2px;border-radius: 16px;">
+            <div class="modal-content border-danger" style="border-width: 2px;border-radius: 16px;">
+                <div class="modal-header bg-danger text-white" style="border-width: 2px;border-radius: 12px;">
+                    <h5 class="modal-title">
+                        <i class="bi bi-exclamation-octagon-fill me-2"></i>
+                        Ошибка ввода
+                    </h5>
+                </div>
+                <div class="modal-body" style="border-width: 2px;border-radius: 16px;">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-exclamation-triangle-fill text-danger fs-3 me-3"></i>
+                        <p class="mb-0 fs-5" style="color: black">@_messageError</p>
+                    </div>
+                    <button type="button" class="btn btn-danger m-3" style="border-radius: 8px;" @onclick="ClearMessageError">
+                        Понятно
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<AuthorizeView>
+<Authorized>
 <div class="container-sm w-100 p-4 mt-3 app-font" style="background: #343447; border-radius: 15px;">
-   
-    <div class="mb-3">
-        <label class="form-label">Выбирете биржу:</label>
-        <select class="form-select input" @bind="@_selectedExchange">
-            <option selected value="@AllExchange[0]">@AllExchange[0]</option>
-            @foreach (var exchange in AllExchange.Skip(1))
+    <div class="d-flex flex-column gap-3 app-font">
+        @if (_user != null)
+        {
+            <div class="form-check m-1">
+                <input class="form-check-input" type="checkbox" checked="@_user.TelegramAlert" @onchange="ChangeAlert">
+                <label class="form-check-label text-light">
+                    Telegram уведомления
+                </label>
+            </div>
+            <div class="form-check m-1">
+                <input class="form-check-input" type="checkbox" checked="@_singleWork" @onchange="ChangeSingleWork">
+                <label class="form-check-label text-light">
+                    Одиночное срабатывание
+                </label>
+            </div>        
+        }
+    </div>
+</div>
+<div class="container-sm w-100 p-4 mt-3 app-font" style="background: #343447; border-radius: 15px;">
+    <label class="form-label">Название сигнала:</label>
+    <input class="form-control mb-2 input" @bind="_nameSignal" @bind:event="oninput" />
+
+</div>
+    <div class="container-sm w-100 p-4 mt-3 app-font" style="background: #343447; border-radius: 15px;">
+
+        <div class="mb-3">
+            <label class="form-label">Выбирете биржу:</label>
+            <select class="form-select input" @onchange="CountExchangeChanger">
+                <option selected value="@AllExchange[0]">@AllExchange[0]</option>
+                @foreach (var exchange in AllExchange.Skip(1))
+                {
+                    <option value="@exchange">@exchange</option>
+                }
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Выберите токен:</label>
+            <input class="form-control mb-2 input" placeholder="Поиск..." @bind="searchText" @bind:event="oninput" />
+
+            <select class="form-select input mb-1" @onchange="CountTokensChanger">
+                @foreach (var pair in filteredPairs)
+                {
+                    <option value="@pair.symbol">@pair.symbol</option>
+                }
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Выбор ТФ (таймфрейм)</label>
+            <select class="form-select input" @onchange="CountTimeFrameChanger">
+                <option value="OneMinute">1 минута</option>
+                <option value="ThreeMinutes">3 минуты</option>
+                <option selected value="FiveMinutes">5 минут</option>
+                <option value="FifteenMinutes">15 минут</option>
+                <option value="ThirtyMinutes">30 минут</option>
+                <option value="OneHour">1 час</option>
+                <option value="TwoHours">2 часа</option>
+                <option value="FourHours">4 часа</option>
+                <option value="SixHours">6 часов</option>
+                <option value="EightHours">8 часов</option>
+                <option value="TwelveHours">12 часов</option>
+                <option value="OneDay">1 день</option>
+                <option value="ThreeDay">3 деня</option>
+                <option value="OneWeek">1 неделя</option>
+                <option value="OneMonth">1 месяц</option>
+            </select>
+        </div>
+    </div>
+    <div class="container-sm w-100 p-4 mt-3 app-font" style="background: #343447; border-radius: 15px;">
+        <div class="mb-3">
+            <label class="form-label">1. Количество свечей для стопа, шт.</label>
+            <input type="number" 
+                   min="1" 
+                   class="form-control input" 
+                   value="@_selectedCandlesCount" 
+                   @onchange="@(async e => await CountCandlesChanger(e))" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">2. Отступ от минимума, %</label>
+            <input type="text" min="0.05" class="form-control input" value="@_selectedOffsetMinimal" @onchange="CountStopLossChanger" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">3. Риск к профиту, кф</label>
+            <input type="text" min="1" class="form-control input" value="@_selectedRiskRatio" @onchange="CountRiskRatioChanger" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">4. Риск на сделку, $</label>
+            <input type="text" min="1" class="form-control input" value="@_selectedRisk" @onchange="CountProfitChanger" />
+        </div>
+    </div>
+    <div class="container-sm w-100 p-4 mt-3 app-font" style="background: #343447; border-radius: 15px;">
+        <div class="d-flex justify-content-between align-items-center">
+
+            @if (_selectedSide == "long")
             {
-                <option value="@exchange">@exchange</option>
+                <div class="d-flex gap-3 w-50 app-font">
+                    <button class="right-outborder btn btn-primary long-button w-100" style="floar: left;" onclick="@SetLong">
+                        Лонг
+                    </button>
+                </div>
+                <div class="d-flex gap-3 w-50 app-font">
+                    <button class="left-outborder btn btn-primary dark-button w-100" style="floar: left;" onclick="@SetShort">
+                        Шорт
+                    </button>
+                </div>
             }
-        </select>
-    </div>
-
-    <div class="mb-3">
-        <label class="form-label">Выбирете токен:</label>
-        <select class="form-select input" @bind="@_selectedToken">
-            @foreach (var token in AllPairs)
+            else
             {
-                <option value="@token">@token</option>
+                <div class="d-flex w-50 app-font">
+                    <button class="right-outborder btn btn-primary dark-button w-100" style="floar: left;" onclick="@SetLong">
+                        Лонг
+                    </button>
+                </div>
+                <div class="d-flex w-50 app-font">
+                    <button class="left-outborder btn btn-primary short-button w-100 " style="floar: left;" onclick="@SetShort">
+                        Шорт
+                    </button>
+                </div>
             }
-        </select>
+        </div>
     </div>
+    <div class="container-sm w-100 p-4 mt-3 app-font" style="background: #343447; border-radius: 15px;">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="mb-2">Ссылка: <b>@GetDomain()</b></span>
 
-    <div class="mb-3">
-        <label class="form-label">5. Выбор ТФ (таймфрейм)</label>
-        <select class="form-select input" @bind="@_selectedTimeFrame">
-            <option selected disabled>Выберите таймфрейм</option>
-            <option value="FiveMinutes">5 минут</option>
-            <option value="FifteenMinutes">15 минут</option>
-            <option value="OneHour">1 час</option>
-            <option value="FourHours">4 часа</option>
-        </select>
+    </div><button @onclick="CopyUrl" class="btn btn-sm save-button" style="background: #4a4a5a; color: white;">
+        <i class="fas fa-copy"></i> @_message1
+    </button>
+</div>
+    <div class="container-sm w-100 p-4 mt-3 app-font" style="background: #343447; border-radius: 15px;">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <span>Сообщение:</span>
+            <button @onclick="() => CopyData()
+    " class="btn btn-sm save-button mb-2" style="background: #4a4a5a; color: white;">
+                <i class="fas fa-copy"></i> @_message2
+            </button>
+        </div>
+        <textarea @bind="_currentData" class="w-100" style="
+        height: 100px;
+        background: #2a2a3a;
+        border-radius: 8px;
+        border: none;
+        padding: 15px;
+        color: #ffffff;
+        resize: none;
+        outline: none;
+    "></textarea>
     </div>
-</div>
+    @if (_signals is {Count: > 0 })
+    {
+            <div class="container-sm p-4 mt-3 app-font mb-5" style="background: #343447; border-radius: 15px;">
+                <div class="row">
+                    <!-- Активные сигналы -->
+                    <div class="col-md-6">
+                        <h3 class=" mb-4">Активные сигналы</h3>
+                        <div class="row">
+                            @foreach (var signal in _signals.Where(x => x.IsActive).ToList())
+                            {
+                                SignalH signalH = JsonConvert.DeserializeObject<SignalH>(signal.Data) ?? new SignalH();
+                                var body = Crypto.Decrypt(signalH.code);
+                                var signalParsed = hSignal.Parse(body);
 
-<div class="container-sm w-100 p-4 mt-3 app-font" style="background: #343447; border-radius: 15px;">
-    <span>Ссылка: @GetDomain()</span><br /><br />
-    <span>Шифровка: @Crypto.Decrypt(GetDomain(), "ggrasdff")</span>
-</div>
+                                <div class="col-md-6 mb-4" style="border-radius: 14px">
+                                    <div class="card border-success h-100" style="border-radius: 14px">
+                                        <div class="card-header bg-success text-white" style="border-radius: 11px">
+                                            @signal.Name
+                                        </div>
+                                        <div class="card-body" style="color: black">
+                                            <h5 class="card-title" >@signalParsed.Symbol</h5>
+                                            <p class="card-text">@signalParsed.Side.ToUpperInvariant()</p>
+                                            <p class="text-muted m-0">@signalParsed.TimeFrame</p>
+                                        </div>
+                                        <div class="card-footer bg-transparent d-flex justify-content-between align-items-center">
+                                            <button class="btn btn-secondary" style="border-radius: 8px" @onclick="() => PauseSignal(signal)">
+                                                <small>Пауза</small>
+                                            </button>
+                                            <button class="btn btn-danger" style="border-radius: 8px" @onclick="() => DeleteSignal(signal)">
+                                                <small>Удалить</small>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
 
-<div class="container-sm w-100 p-4 mt-3 app-font" style="background: #343447; border-radius: 15px;">
-    <div class="d-flex gap-3 app-font">
-        <button class="btn btn-primary save-button" style="floar: left;">
-            Сохранить
-        </button>
-    </div>
-</div>
+                    <!-- Неактивные сигналы -->
+                    <div class="col-md-6">
+                        <h3 class=" mb-4">Неактивные сигналы</h3>
+                        <div class="row">
+                            @foreach (var signal in _signals.Where(x => !x.IsActive).ToList())
+                            {
+                                SignalH signalH = JsonConvert.DeserializeObject<SignalH>(signal.Data) ?? new SignalH();
+                                var body = Crypto.Decrypt(signalH.code);
+                                var signalParsed = hSignal.Parse(body);
+
+                                <div class="col-md-6 mb-4">
+                                    <div class="card border-secondary h-100" style="border-radius: 14px">
+                                        <div class="card-header bg-secondary text-white" style="border-radius: 11px">
+                                            @signal.Name
+                                        </div>
+                                        <div class="card-body" style="color: black;">
+                                            <h5 class="card-title">@signalParsed.Symbol</h5>
+                                            <p class="card-text">@signalParsed.Side.ToUpperInvariant()</p>
+                                            <p class="text-muted m-0">@signalParsed.TimeFrame</p>
+                                        </div>
+                                        <div class="card-footer bg-transparent d-flex justify-content-between align-items-center">
+                                            <button class="btn btn-success" style="border-radius: 8px" @onclick="() => StartSignal(signal)">
+                                                <small>Запуск</small>
+                                            </button>
+                                            <button class="btn btn-danger" style="border-radius: 8px" @onclick="() => DeleteSignal(signal)">
+                                                <small>Удалить</small>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+    }
+    else
+        {
+
+            <div class="container-sm p-4 mt-3 app-font mb-5">
+                
+            </div>
+
+    }
+    
+</Authorized>
+</AuthorizeView>
+
 
 <style>
+
+
+    .dark-button {
+        background: linear-gradient(135deg, gray 0%, darkgray 100%);
+        border: none;
+        border-radius: 8px;
+        padding: 10px 20px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .short-button {
+        background: linear-gradient(135deg, red 0%, darkred 100%);
+        border: none;
+        border-radius: 8px;
+        padding: 10px 20px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .long-button {
+        background: linear-gradient(135deg, green 0%, darkgreen 100%);
+        border: none;
+        border-radius: 8px;
+        padding: 10px 20px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
     .save-button {
         background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
         border: none;
@@ -70,30 +325,360 @@
             transform: translateY(0);
         }
 
+    .left-outborder {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+    }
+
+    .right-outborder {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+
     .input {
         font-weight: 600;
         background: #33373f;
         border-color: #12242e;
         color: #c8c8c7;
     }
+
 </style>
 
 
 
 @code {
-    
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticatotrTask { get; set; }
+    private string _message1 = "Копировать";
+    private string _message2 = "Копировать";
     private string _selectedExchange = "Bitunix";
-    private string _selectedToken = "BTC";
+    private string _selectedToken = "BTCUSDT"; 
+    private string _nameSignal = string.Empty;
     private string _selectedTimeFrame = "FiveMinutes";
-    private List<string> AllPairs = new() { "BTC", "LTC", "ZEE", "XRP" };
-    private List<string> AllExchange = new() {"Bitunix", "BingX"};
-    
-    public string GetDomain()
+    private bool _singleWork = false;
+    private string _currentDomain;
+    private string _currentData;
+    private string _selectedSide = "long";
+    private AppUser? _user;
+    private Dictionary<string, List<Pair>> AllPairs = new();
+    private List<string> AllExchange = new() { "Bitunix", "Bingx" };
+    private double _selectedRisk = 10;
+    private double _selectedOffsetMinimal = .2;
+    private int _selectedCandlesCount = 5;
+    private double _selectedRiskRatio = 3;
+    private string _messageError = string.Empty;
+    private List<Signal>? _signals = null;
+    private string searchText = "";
+    private IEnumerable<Pair> filteredPairs => AllPairs
+        .FirstOrDefault(x => x.Key == _selectedExchange).Value
+        .Where(x => x.symbol.Contains(searchText, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
     {
-        var str = $"{_selectedExchange}-{_selectedToken}-{_selectedTimeFrame}";
-        
-        var hash = Crypto.Encrypt(str, "ggrasdff");
-        var domain = new Uri(Navigation.BaseUri).GetLeftPart(UriPartial.Authority) + @"/hsignal/" + hash;
-        return hash;
+        try
+        {
+            LoadAllPairs();
+            var ath = await authenticatotrTask;
+            _user = ApplicationContext.Users.FirstOrDefault(x => ath.User.Identity != null && x.Name == ath.User.Identity.Name) ?? new AppUser();
+
+            if (_user.IsTelegram && _user.TelegramAlert is null)
+            {
+                _user.TelegramAlert = false;
+                await ApplicationContext.SaveChangesAsync();
+            }
+
+            _signals = await _user.GetSignals();
+        }
+        catch (Exception e)
+        {
+            Error.Log(e);
+        }
     }
+    private async void LoadAllPairs()
+    {
+        try
+        {
+            foreach (var exchangeName in AllExchange)
+            {
+                if (exchangeName == "Bitunix")
+                {
+                    IExchange exc = new BitUnix();
+                    var pairs = await exc.GetAllPairs();
+                    if (pairs != null) 
+                        AllPairs.Add(exchangeName, pairs);
+                }
+                if (exchangeName == "Bingx")
+                {
+                    IExchange exc = new BingX();
+                    var pairs = await exc.GetAllPairs();
+                    if (pairs != null)
+                        AllPairs.Add(exchangeName, pairs);
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            e.Source = @"NewSignal\LoadAllPairs()";
+            Error.Log(e);
+        }
+    }
+    private async Task CopyUrl()
+    {
+
+        try
+        {
+            var data = _currentDomain.ToString();
+            await jsRuntime.InvokeVoidAsync("navigator.clipboard.writeText", data);
+            await ViewMessage1("Скопированно!");
+        }
+        catch (Exception e)
+        {
+            var ms = e.Message;
+            Console.WriteLine(ms);
+        }
+    }
+    private async Task CopyData()
+    {
+
+        if (_user == null)
+        {
+            await ViewMessageError("Пользователь не найден!");
+            return;
+        }
+
+        try
+        {
+
+            var data = await GetData(); 
+            var signal = new Signal
+            {
+                Owner = _user.Hash,
+                Data = data,
+                IsActive = true,
+                SingleWork = _singleWork,
+                Symbol = _selectedToken,
+                IsCompleted = false,
+                Name = _nameSignal
+
+            };
+
+            await _user.SaveSignal(signal);
+            if (_signals != null)
+            {
+                _signals.Add(signal);
+            }
+            else
+            {
+                _signals = new List<Signal>
+                {
+                    signal
+                };
+            }
+            await jsRuntime.InvokeVoidAsync("navigator.clipboard.writeText", data);
+            await ViewMessage2("Скопированно!");
+        }
+        catch (Exception e)
+        {
+            var ms = e.Message;
+            Console.WriteLine(ms);
+        }
+    }
+    private async Task ViewMessage1(string message)
+    {
+        _message1 = message;
+        StateHasChanged();
+
+        await Task.Delay(2000); // Ждем 2 секунды
+
+        _message1 = "Копировать";
+        StateHasChanged();
+    }
+    private async Task ViewMessage2(string message)
+    {
+        _message2 = "Обновленно!";
+        StateHasChanged();
+
+        await Task.Delay(300);
+
+        _message2 = message;
+        StateHasChanged();
+
+        await Task.Delay(2000); // Ждем 2 секунды
+
+        _message2 = "Копировать";
+        StateHasChanged();
+    }
+    private async Task<string> GetData()
+    {
+        if (_user != null)
+        {
+            if (string.IsNullOrEmpty(_nameSignal))
+            {
+                await ViewMessageError("Введите название сигнала");
+                return "";
+            }
+            if (_selectedCandlesCount is < 0 or > 51)
+            {
+                await ViewMessageError("Количество свечей: мин: 1 макс: 50 ");
+                return "";
+            }
+            if (_selectedOffsetMinimal < 0)
+            {
+                await ViewMessageError("Отступ: мин: 0");
+                return "";
+            }
+            if (_selectedRiskRatio < 1)
+            {
+                await ViewMessageError("Риск к профиту: мин: 1");
+                return "";
+            }
+            if (_selectedRisk < 10)
+            {
+                await ViewMessageError("Риск на сделку: мин: $ 10");
+                return "";
+            }
+            var h = new hSignal
+            {
+                Exchange = _selectedExchange,
+                Symbol = _selectedToken,
+                TimeFrame = _selectedTimeFrame,
+                Side = _selectedSide,
+                Config = new Config
+                {
+                    CandlesCount = _selectedCandlesCount,
+                    Name = _user.Name,
+                    OffsetMinimal = _selectedOffsetMinimal,
+                    Risk = _selectedRisk,
+                    RiskRatio = _selectedRiskRatio,
+                    TimeFrame = _selectedTimeFrame,
+
+                }
+            };
+
+            _currentData = $"{{\"code\":\"{h.ToHash()}\"}}";
+
+            return _currentData;
+        }
+        else
+        {
+            return "user == null";
+        }
+    }
+    private async Task ViewMessageError(string error)
+    {
+        _messageError = error;
+        StateHasChanged();
+
+        await Task.Delay(7000); // Ждем 2 секунды
+
+        _messageError = string.Empty;
+        StateHasChanged();
+    }
+    private string GetDomain()
+    {
+        _currentDomain = new Uri(Navigation.BaseUri).GetLeftPart(UriPartial.Authority) + @"/h/";
+
+
+
+        return _currentDomain;
+    }
+    private async Task CountCandlesChanger(ChangeEventArgs e)
+    {
+        await Task.Run(() =>
+        {
+            var data = e.Value?.ToString();
+            if (int.TryParse(data, out int result)) _selectedCandlesCount = result;
+        });
+        await GetData();
+    }
+    private async Task CountStopLossChanger(ChangeEventArgs obj)
+    {
+        var value = obj.Value?.ToString();
+        if (double.TryParse(value, out var result)) _selectedOffsetMinimal = result;
+        await GetData();
+    }
+    private async Task CountRiskRatioChanger(ChangeEventArgs obj)
+    {
+        var value = obj.Value?.ToString();
+        if (double.TryParse(value, out var result)) _selectedRiskRatio = result;
+        await GetData();
+    }
+    private async Task CountProfitChanger(ChangeEventArgs obj)
+    {
+        var value = obj.Value?.ToString();
+        if (double.TryParse(value, out var result)) _selectedRisk = result;
+        await GetData();
+    }
+    private async Task CountTimeFrameChanger(ChangeEventArgs obj)
+    {
+        _selectedTimeFrame = obj.Value?.ToString();
+        await GetData();
+    }
+    private async Task CountExchangeChanger(ChangeEventArgs obj)
+    {
+        _selectedExchange = obj.Value?.ToString();
+        await GetData();
+    }
+    private async Task CountTokensChanger(ChangeEventArgs obj)
+    {
+        _selectedToken = obj.Value?.ToString();
+        await GetData();
+    }
+    private async Task SetShort()
+    {
+        _selectedSide = "short"; await GetData();
+    }
+    private async Task SetLong()
+    {
+        _selectedSide = "long"; await GetData();
+    }
+    private void ClearMessageError()
+    {
+        _messageError = string.Empty;
+    }
+    private async Task ChangeAlert()
+    {
+        if (_user == null) return;
+
+        _user.TelegramAlert = !_user.TelegramAlert;
+        await ApplicationContext.SaveChangesAsync();
+    }
+    private void ChangeSingleWork() => _singleWork = !_singleWork;
+
+    private async Task DeleteSignal(Signal signal)
+    {
+        if (_user == null)
+        {
+            await ViewMessageError("Пользователь не найден!");
+            return;
+        }
+
+        await _user.DeleteSignal(signal);
+        _signals?.Remove(signal);
+    }
+
+    private async Task PauseSignal(Signal signal)
+    {
+        if (_user == null)
+        {
+            await ViewMessageError("Пользователь не найден!");
+            return;
+        }
+
+        signal.IsActive = false;
+        await _user.UpdateSignal(signal);
+    }
+
+    private async Task StartSignal(Signal signal)
+    {
+        if (_user == null)
+        {
+            await ViewMessageError("Пользователь не найден!");
+            return;
+        }
+
+        signal.IsActive = true;
+        await _user.UpdateSignal(signal);
+    }
+
 }

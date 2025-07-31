@@ -6,36 +6,150 @@
     <!-- Основное содержимое, которое будет под меню -->
     <main class="flex-grow-1">
         <div class="container-fluid content app-font" style="background-color: #171d26">
-        <AuthorizeView>
-            <NotAuthorized>
-                <div class="collapse d-flex justify-content-between align-items-center ">
-                    <!-- Левая часть (ссылки) -->
-                    <div class="d-flex gap-3">
-                        <a class="nav-link text-white" href="#">О нас</a>
-                    </div>
+            <AuthorizeView>
+                <NotAuthorized>
+                    <div class="collapse d-flex justify-content-between align-items-center ">
+                        <!-- Левая часть (ссылки) -->
+                        <div class="d-flex gap-3">
+                            <a class="nav-link text-white" href="#">О нас</a>
+                        </div>
 
-                    <!-- Правая часть (Logout) -->
-                    <div>
-                        <a class="nav-link text-white btn btn-primary" href="login" style="border-radius: 5px; font-weight: 600;">
-                            Вход
-                        </a>
+                        <!-- Правая часть (Logout) -->
+                        <div>
+                            <a class="nav-link text-white btn btn-primary" href="login" style="border-radius: 5px; font-weight: 600;">
+                                Вход
+                            </a>
+                        </div>
                     </div>
-                </div>
-            </NotAuthorized>
-            <Authorized>
-                <NavMenu />
-                
-            </Authorized>
-        </AuthorizeView>
-        
+                </NotAuthorized>
+                <Authorized>
+                    <NavMenu />
+                </Authorized>
+            </AuthorizeView>
+
             @Body
         </div>
     </main>
-
-    <!-- Блок ошибок (оставляем как было) -->
-    <div id="blazor-error-ui">
-        An unhandled error has occurred.
-        <a href="" class="reload">Reload</a>
-        <a class="dismiss">🗙</a>
+    
+    <div id="blazor-error-ui" class="error-container">
+        <div class="error-content">
+            <div class="error-icon">⚠️</div>
+            <div class="error-message">
+                <h3>Обновите страницу</h3>
+            </div>
+            <div class="error-actions">
+                <a href="" class="reload-button">
+                    <span class="reload-icon">↻</span>
+                    Обновить страницу
+                </a>
+                <button class="dismiss-button">✕</button>
+            </div>
+        </div>
     </div>
 </div>
+<style>
+    .error-container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: #ffebee;
+        color: #d32f2f;
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        z-index: 1000;
+        display: none;
+        padding: 15px;
+        border-top: 1px solid #ef9a9a;
+    }
+
+    .error-content {
+        display: flex;
+        align-items: center;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .error-icon {
+        font-size: 2rem;
+        margin-right: 15px;
+    }
+
+    .error-message {
+        flex-grow: 1;
+    }
+
+        .error-message h3 {
+            margin: 0 0 5px 0;
+            font-size: 1.2rem;
+        }
+
+        .error-message p {
+            margin: 0;
+            font-size: 0.9rem;
+        }
+
+    .error-actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .reload-button {
+        background: #d32f2f;
+        color: white;
+        padding: 8px 15px;
+        border-radius: 4px;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        transition: background 0.3s;
+    }
+
+        .reload-button:hover {
+            background: #b71c1c;
+        }
+
+    .reload-icon {
+        animation: spin 2s linear infinite;
+    }
+
+    .dismiss-button {
+        background: transparent;
+        border: 1px solid #d32f2f;
+        color: #d32f2f;
+        border-radius: 4px;
+        padding: 0 10px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+        .dismiss-button:hover {
+            background: #d32f2f;
+            color: white;
+        }
+
+    @@keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+
+    #blazor-error-ui.show {
+        display: block;
+        animation: slideUp 0.5s forwards;
+    }
+
+    @@keyframes slideUp {
+        from {
+            transform: translateY(100%);
+        }
+
+        to {
+            transform: translateY(0);
+        }
+    }
+</style>

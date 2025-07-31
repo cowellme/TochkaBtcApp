@@ -28,7 +28,7 @@ namespace TochkaBtcApp.Telegram
                 {
                     AllowedUpdates = { },
                 };
-                _bot = new TelegramBotClient("7166269500:AAHrIa_nw0dXi9AfLB2X2IPeAfsD6snjftA");
+                _bot = new TelegramBotClient("7583472985:AAG1_OLCWZJwKEzRrtqgp6Q01X2EvYt5QQA");
                 _bot.StartReceiving(
                     (botClient, update, cancellationToken1) => HandleUpdateAsync(botClient, update, cancellationToken1),
                     HandleErrorAsync, receiverOptions, cancellationToken);
@@ -42,6 +42,8 @@ namespace TochkaBtcApp.Telegram
 
         private static Task HandleErrorAsync(ITelegramBotClient botClient, Exception ex, HandleErrorSource errorSource, CancellationToken cancellationToken)
         {
+            if (ex.Message.Contains("terminated by")) return null;
+
             return Task.Run(() => Error.Log(ex), cancellationToken);
         }
 
@@ -86,6 +88,20 @@ namespace TochkaBtcApp.Telegram
                 await _bot.SendMessage(id, "Привет!", replyMarkup: buttons);
             }
 
+            if (msg.ToLower().Contains("/start"))
+            {
+                var hash = msg.Replace("/start ", "");
+                await using var db = new ApplicationContext();
+                var users = db.Users.ToList();
+                var user = users.FirstOrDefault(x => x.Hash == hash);
+                if (user == null) return;
+                user.TelegramId = (long)id;
+                user.IsTelegram = true;
+                await db.SaveChangesAsync();
+                var buttons = GetButtons("/start");
+                await _bot.SendMessage(id, "Верефикация пройдена!", replyMarkup: buttons);
+            }
+
             if (msg.ToLower() == "позиции")
             {
                 try
@@ -126,11 +142,16 @@ namespace TochkaBtcApp.Telegram
                     var user = _users.FirstOrDefault(x => x.TelegramId == id);
                     if (user != null)
                     {
-                        decimal balance = Models.Exc.BingX.GetBalance(user.ApiBingx, user.SecretBingx);
-
-                        if (balance > 0)
+                        decimal balanceBingx = Models.Exc.BingX.GetBalance(user.ApiBingx, user.SecretBingx);
+                        string balanceBitunix = await BitUnix.GetBalance(user);
+                        if (balanceBingx > 0)
                         {
-                            _bot.SendMessage(id, $"Баланс (Futures): $ {balance:0.00}");
+                            _bot.SendMessage(id, $"Баланс (BingX): $ {balanceBingx:0.00}\n" +
+                                                 $"Баланс (BitUnix): $ {balanceBitunix}");
+                        }
+                        else
+                        {
+                            _bot.SendMessage(id, $"Баланс (BitUnix): $ {balanceBitunix}");
                         }
                     }
                 }
@@ -173,5 +194,7 @@ namespace TochkaBtcApp.Telegram
                 default: return buttons;
             }
         }
+
+        public static async Task SendMessageById(long telegramId, string message) => await _bot.SendMessage(telegramId, message);
     }
 }

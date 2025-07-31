@@ -1,14 +1,17 @@
-﻿using BitUnixApi;
+﻿using BingX.Net.Clients;
+using BingX.Net.Objects.Models;
+using BitUnixApi;
+using BitUnixApi.Enums;
+using CryptoExchange.Net.Requests;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System.Globalization;
+using Telegram.Bot.Types;
+using TochkaBtcApp.Bitunix.Enums;
+using TochkaBtcApp.Bitunix.Models;
+using TochkaBtcApp.Contollers;
 using TochkaBtcApp.Models;
 using TochkaBtcApp.Models.Exc;
-using TochkaBtcApp.Bitunix.Enums;
-using BingX.Net.Clients;
-using TochkaBtcApp.Contollers;
-using BingX.Net.Objects.Models;
-using TochkaBtcApp.Bitunix.Models;
-using System.Globalization;
-using BitUnixApi.Enums;
 
 public class BitUnix : IExchange
 {
@@ -17,6 +20,61 @@ public class BitUnix : IExchange
     private static string _symbolDefault = "BTCUSDT";
 
 
+    public HttpRequestMessage? CreateHeaders(BitUnixOrder order,AppUser user)
+    {
+        var api = user.ApiBitUnix;
+        var secret = user.SecretBitUnix;
+
+        if (string.IsNullOrEmpty(api) || string.IsNullOrEmpty(secret)) return null;
+
+        var timestamp = Utils.GetTimestamp();
+        var nonce = Utils.GetNonce();
+        var httpBody = Utils.GetBody(order);
+        SortedDictionary<string, string>? queryParamsMap = null;
+        var sign = SignatureGenerator.GenerateSign(nonce, timestamp, api, queryParamsMap, httpBody, secret);
+        var request = new HttpRequestMessage
+        {
+            Method = HttpMethod.Post,
+            RequestUri = new Uri($"https://fapi.bitunix.com/api/v1/futures/trade/place_order"),
+            Content = new StringContent(httpBody),
+        };
+        request.Headers.Add("api-key", api);
+        request.Headers.Add("sign", sign);
+        request.Headers.Add("nonce", nonce);
+        request.Headers.Add("timestamp", timestamp);
+        request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+        return request;
+    }
+    public async Task<string> PlaceHOrder(BitUnixOrder order, AppUser user)
+    {
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var request = CreateHeaders(order, user);
+                if (request is null) return null;
+                
+                using var response = _httpClient.SendAsync(request).Result;
+                response.EnsureSuccessStatusCode();
+                var price = GetLastPrice(order.symbol).Result;
+                if (decimal.TryParse(order.qty, out var deQty))
+                {
+                    user.SendAlert($"{order.side} {order.symbol}\n" +
+                                   $"Take: $ {order.tpPrice}\n" +
+                                   $"Open: $ {price:0.00}\n" +
+                                   $"Stop: $ {order.slPrice}" +
+                                   $"Volume: $ {(deQty * price):0.00}");
+                }
+                
+                var result = response.Content.ReadAsStringAsync();
+                return result;
+            });
+        }
+        catch (HttpRequestException e)
+        {
+            return $"Error: {e.Message}";
+        }
+    }
     public async Task<string> PlaceOrder(BitUnixOrder order, AppUser user)
     {
         try
@@ -51,18 +109,18 @@ public class BitUnix : IExchange
             return $"Error: {e.Message}";
         }
     }
-    private async Task<(decimal stopLossPrice, decimal takeProfitPrice, decimal quantity)?> Calculated( KlineInterval interval, Config config, decimal price)
+    private async Task<(decimal stopLossPrice, decimal takeProfitPrice, decimal quantity)?> Calculated( KlineInterval interval, Config config, decimal price, string symbol = "BTCUSDT")
     {
         try
         {
-            var stopLoss = await CalculateStopLoss(interval, price, config.CandlesCount, (decimal)config.OffsetMinimal / 100, _sideDefault);
+            var stopLoss = await CalculateStopLoss(interval, price, config.CandlesCount, (decimal)config.OffsetMinimal / 100, _sideDefault, symbol);
 
             var takeProfitPrice = await CalculateTakeProfit(price, stopLoss, (decimal)config.RiskRatio, _sideDefault);
             var stopLossPrice = price - stopLoss;
             takeProfitPrice = Math.Round(takeProfitPrice, 2);
             stopLossPrice = Math.Round(stopLossPrice, 2);
             var volume = (decimal)config.Risk / (Math.Abs(stopLossPrice - price) / price);
-            var qty = await GetQuantity(_symbolDefault, volume, price);
+            var qty = await GetQuantity(symbol, volume, price);
             var response = (stopLossPrice, takeProfitPrice, qty);
             return response;
         }
@@ -163,11 +221,11 @@ public class BitUnix : IExchange
 
         return response;
     }
-    private async Task<decimal> GetMinimalPriceForCandles(KlineInterval interval, int candlesCount)
+    private async Task<decimal> GetMinimalPriceForCandles(KlineInterval interval, int candlesCount, string symbol)
     {
         var response = .0m;
 
-        var listCandles = await GetLastCandles(_symbolDefault, interval, candlesCount);
+        var listCandles = await GetLastCandles(symbol, interval, candlesCount);
 
         var min = listCandles?.MinBy(x => x.low)?.low;
 
@@ -175,14 +233,14 @@ public class BitUnix : IExchange
 
         return response;
     }
-    private async Task<decimal> CalculateStopLoss( KlineInterval interval, decimal openPrice, int candlesCount, decimal offsetMinimal, string side)
+    private async Task<decimal> CalculateStopLoss(KlineInterval interval, decimal openPrice, int candlesCount, decimal offsetMinimal, string side, string symbol)
     {
         var response = 0m;
 
         switch (side)
         {
             case "LONG":
-                var minPrice = await GetMinimalPriceForCandles(interval, candlesCount);
+                var minPrice = await GetMinimalPriceForCandles(interval, candlesCount, symbol);
                 if (minPrice > 0)
                 {
                     response = Math.Abs(openPrice - minPrice) + minPrice * offsetMinimal;
@@ -288,6 +346,35 @@ public class BitUnix : IExchange
             return e.Message;
         }
     }
+    public async Task<List<Pair>?> GetAllPairs()
+    {
+        try
+        {
+            var request = new HttpRequestMessage
+            {
+                Method = HttpMethod.Get,
+                RequestUri = new Uri($"https://fapi.bitunix.com/api/v1/futures/market/trading_pairs?asset=USDT")
+            };
+
+            using var response = _httpClient.SendAsync(request).Result;
+            response.EnsureSuccessStatusCode();
+            var result = await response.Content.ReadAsStringAsync();
+            var json = JObject.Parse(result);
+            if (json.TryGetValue("data", out var field))
+            {
+                var jsString = field.ToString();
+                var pairsObj = JsonConvert.DeserializeObject<List<Pair>>(jsString);
+                return pairsObj;
+            }
+            return new List<Pair>();
+        }
+        catch (Exception e)
+        {
+            e.Source = "GetAllPairs";
+            Error.Log(e);
+            return null;
+        }
+    }
     private async Task<string> Buy(AppUser user, KlineInterval interval, Config config)
     {
         try
@@ -353,6 +440,129 @@ public class BitUnix : IExchange
     {
         var allValues = Enum.GetValues(typeof(KlineInterval)).Cast<KlineInterval>().ToList();
         return allValues.FirstOrDefault(x => (int)x == (int)globalInterval);
+    }
+    public async Task<string> BuyHSignal(AppUser user, hSignal signal)
+    {
+        try
+        {
+            var config = signal.Config;
+            config.TimeFrame = signal.TimeFrame;
+            var order = await OrderFromSignal(signal);
+            if (order == null) throw new Exception("399:1 BuyHSignal");
+            var result = await PlaceHOrder(order, user);
+            return result;
+        }
+        catch (Exception e)
+        {
+            Error.Log(e);
+            return e.Message;
+        }
+    }
+    private async Task<BitUnixOrder?> OrderFromSignal(hSignal signal)
+    {
+        try
+        { 
+            string symbol = signal.Symbol;
+            var price = await GetLastPrice(symbol) ?? -1;
+            if (price < 0) throw new Exception("Price is not found");
+            var side = signal.Side.ToLower() == "long" ? BitUnixSide.Buy : BitUnixSide.Sell;
+            var config = signal.Config;
+            var interval = ParseInterval(signal.TimeFrame);
+            var calculated = Calculated(interval, config, price, symbol).Result;
+
+            if (calculated == null) throw new Exception("Ошибка расчетов позиции");
+            var quantity = calculated?.quantity ?? -1;
+            var tpPrice = calculated?.takeProfitPrice ?? -1;
+            var slPrice = calculated?.stopLossPrice ?? -1;
+            var order = new BitUnixOrder
+            {
+                symbol = symbol,
+                side = side,
+                orderType = BitUnixOrderType.Market,
+                qty = quantity.ToString(CultureInfo.InvariantCulture),
+                tpPrice = tpPrice.ToString(CultureInfo.InvariantCulture),
+                slPrice = slPrice.ToString(CultureInfo.InvariantCulture),
+            };
+            return order;
+        }
+        catch (Exception e)
+        {
+            e.Source = "418:1 OrderByComfig";
+            Error.Log(e);
+            return null;
+        }
+    }
+    private KlineInterval ParseInterval(string signalTimeFrame)
+    {
+        switch (signalTimeFrame)
+        {
+            case "OneMinute":
+                return KlineInterval.OneMinute;
+            case "ThreeMinutes":
+                return KlineInterval.ThreeMinutes;
+            case "FiveMinutes":
+                return KlineInterval.FiveMinutes;
+            case "FifteenMinutes":
+                return KlineInterval.FifteenMinutes;
+            case "ThirtyMinutes":
+                return KlineInterval.ThirtyMinutes;
+            case "OneHour":
+                return KlineInterval.OneHour;
+            case "TwoHours":
+                return KlineInterval.TwoHours;
+            case "FourHours":
+                return KlineInterval.FourHours;
+            case "SixHours":
+                return KlineInterval.SixHours;
+            case "EightHours":
+                return KlineInterval.EightHours;
+            case "TwelveHours":
+                return KlineInterval.TwelveHours;
+            case "OneDay":
+                return KlineInterval.OneDay;
+            case "ThreeDay":
+                return KlineInterval.ThreeDay;
+            case "OneWeek":
+                return KlineInterval.OneWeek;
+            case "OneMonth":
+                return KlineInterval.OneMonth;
+            default: 
+                return KlineInterval.FiveMinutes;
+        }
+    }
+    public static HttpRequestMessage? CreateHeadersAccount(AppUser user, string url = @"https://fapi.bitunix.com/api/v1/futures/account?marginCoin=USDT", object? obj = null)
+    {
+        var api = user.ApiBitUnix;
+        var secret = user.SecretBitUnix;
+
+        if (string.IsNullOrEmpty(api) || string.IsNullOrEmpty(secret)) return null;
+
+        var timestamp = Utils.GetTimestamp();
+        var nonce = Utils.GetNonce();
+        
+        SortedDictionary<string, string>? queryParamsMap = new SortedDictionary<string, string> { { "marginCoin", "USDT" } };
+        var sign = SignatureGenerator.GenerateSign(nonce, timestamp, api, queryParamsMap, "", secret);
+        var request = new HttpRequestMessage
+        {
+            Method = HttpMethod.Get,
+            RequestUri = new Uri(url),
+        };
+        request.Headers.Add("api-key", api);
+        request.Headers.Add("sign", sign);
+        request.Headers.Add("nonce", nonce);
+        request.Headers.Add("timestamp", timestamp);
+        return request;
+    }
+    public static async Task<string> GetBalance(AppUser user)
+    {
+        //https://fapi.bitunix.com/api/v1/futures/account?marginCoin=USDT
+        var request = CreateHeadersAccount(user);
+        var cl = new HttpClient();
+        using var response = cl.SendAsync(request).Result;
+        response.EnsureSuccessStatusCode();
+        var res = await response.Content.ReadAsStringAsync();
+        var account = JsonConvert.DeserializeObject<ResponseAccount>(res).data;
+        return account.available;
     }
 }
 

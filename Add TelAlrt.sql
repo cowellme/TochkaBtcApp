@@ -1,0 +1,1 @@
+ALTER TABLE tochka.users ADD COLUMN TelegramAlert tinyint;

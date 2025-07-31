@@ -9,9 +9,9 @@ public static class Utils
     public static string GetBody(object obj)
     {
         var settings = new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore };
-        var ss = JsonConvert.SerializeObject(obj, settings);
-        TochkaBtcApp.Models.Error.Log(new Exception("Request: " + ss));
-        return ss;
+        var body = JsonConvert.SerializeObject(obj, settings);
+        TochkaBtcApp.Models.Error.Log(new Exception("Request: " + body));
+        return body;
     }
     public static string GetNonce()
     {

@@ -12,84 +12,90 @@
 }
 else
 {
-    if (!string.IsNullOrEmpty(_action))
-    {
-        <div style="position: absolute; width: max-content; height: max-content; background: #94d0b4; padding: 10px; border-radius: 10px; left: 50%; transform: translate(-50%, 0)">
-            <p class="h-5 app-font">Перейдите по ссылке!</p>
-            <a style="color: aliceblue" target="_blank" href="https://t.me/RomashkaCryptoBot?start=@_action">Перейти</a>
-        </div>
-    }
+    <AuthorizeView>
+        <Authorized>
+            @if (!string.IsNullOrEmpty(_action))
+            {
+                <div style="position: absolute; width: max-content; height: max-content; background: #94d0b4; padding: 10px; border-radius: 10px; left: 50%; transform: translate(-50%, 0)">
+                    <p class="h-5 app-font">Перейдите по ссылке!</p>
+                    <a style="color: aliceblue" target="_blank" href="https://t.me/RomashkaCryptoBot?start=@_action">Перейти</a>
+                </div>
+            }
 
-    if (!string.IsNullOrEmpty(_message))
-    {
-        <div style="position: absolute; width: max-content; height: max-content; background: #94d0b4; padding: 30px; padding-bottom: 10px; padding-top: 10px; border-radius: 8px; left: 50%; transform: translate(-50%, 100px)">
-            <span style="color: #00190d; font-weight: 600;">@_message</span>
-        </div>
-    }
-
+            @if (!string.IsNullOrEmpty(_message))
+            {
+                <div style="position: absolute; width: max-content; height: max-content; background: #94d0b4; padding: 30px; padding-bottom: 10px; padding-top: 10px; border-radius: 8px; left: 50%; transform: translate(-50%, 100px)">
+                    <span style="color: #00190d; font-weight: 600;">@_message</span>
+                </div>
+            }
+            @* 
     <div class="container-sm w-100 mt-3 p-0">
         <a class=" nav-link text-white btn app-font m-0 pb-3 pt-3" href="/new-signal" style="background: #0088CC; border-radius: 16px; w font-weight: 600;">
             Добавить сигнал
         </a>
-    </div>
+    </div> *@
 
-    <div class="container-sm w-100 p-4 mt-3 app-font" style="background: #343447; border-radius: 15px;">
-        <div class="mb-3">
-            <label class="form-label">1. Количество свечей для стопа, шт.</label>
-            <input type="text" class="form-control input" value="@_candlesCount" @onchange="CountCandlesChanger" />
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label">2. Отступ от минимума, %</label>
-            <input type="text" class="form-control input" value="@_offsetMinimal" @onchange="CountStopLossChanger" />
-        </div>
-        <div class="mb-3">
-            <label class="form-label">3. Риск к профиту, кф</label>
-            <input type="text" class="form-control input" value="@_riskRatio" @onchange="CountRiskRatioChanger" />
-        </div>
-        <div class="mb-3">
-            <label class="form-label">4. Риск на сделку, $</label>
-            <input type="text" class="form-control input" value="@_risk" @onchange="CountProfitChanger" />
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label">5. Выбор ТФ (таймфрейм)</label>
-            <select class="form-select input" @bind="_selectedTimeFrame">
-                <option selected disabled>Выберите таймфрейм</option>
-                <option value="FiveMinutes">5 минут</option>
-                <option value="FifteenMinutes">15 минут</option>
-                <option value="OneHour">1 час</option>
-                <option value="FourHours">4 часа</option>
-            </select>
-        </div>
-        <div class="d-flex gap-3 app-font">
-            <button class="btn btn-primary save-button" style="floar: left;" @onclick="() => SaveConfig()">Сохранить
-            </button>
-        </div>
-    </div>
-    
-    @if (SavedConfigs.Count > 0)
-    {
-        foreach (var config in SavedConfigs)
-        {
-            <div class="container-sm w-100 p-2 pb-3 mt-3 app-font" style="background: #343447; border-radius:15px;">
-                <div class="card-body">
-                    <span class=""><b>ТФ:</b> @config.TimeFrame</span>
-                    <br>
-                    <span class=""><b>Кол-во свечей:</b> @config.CandlesCount</span>
-                    <br>
-                    <span class=""><b>Отступ от мин.:</b> @config.OffsetMinimal %</span>
-                    <br>
-                    <span class=""><b>Риск на сделку:</b> @config.Risk $</span>
-                    <br>
-                    <span class=""><b>Коэф. риска: </b>@config.RiskRatio</span>
+            <div class="container-sm w-100 p-4 mt-3 app-font" style="background: #343447; border-radius: 15px;">
+                <div class="mb-3">
+                    <label class="form-label">1. Количество свечей для стопа, шт.</label>
+                    <input type="text" class="form-control input" value="@_candlesCount" @onchange="CountCandlesChanger" />
                 </div>
-                <div class="card-header h4 d-flex justify-content-between align-items-center">
-                    <button class="nav-link text-white btn btn-danger px-3" style="border-radius: 5px; font-weight: 600;" @onclick="() => DeleteConfig(config.Id, config.Name)">Удалить</button>
+
+                <div class="mb-3">
+                    <label class="form-label">2. Отступ от минимума, %</label>
+                    <input type="text" class="form-control input" value="@_offsetMinimal" @onchange="CountStopLossChanger" />
                 </div>
-            </div>  
-        }
-    }
+                <div class="mb-3">
+                    <label class="form-label">3. Риск к профиту, кф</label>
+                    <input type="text" class="form-control input" value="@_riskRatio" @onchange="CountRiskRatioChanger" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">4. Риск на сделку, $</label>
+                    <input type="text" class="form-control input" value="@_risk" @onchange="CountProfitChanger" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">5. Выбор ТФ (таймфрейм)</label>
+                    <select class="form-select input" @bind="_selectedTimeFrame">
+                        <option selected disabled>Выберите таймфрейм</option>
+                        <option value="FiveMinutes">5 минут</option>
+                        <option value="FifteenMinutes">15 минут</option>
+                        <option value="OneHour">1 час</option>
+                        <option value="FourHours">4 часа</option>
+                    </select>
+                </div>
+                <div class="d-flex gap-3 app-font">
+                    <button class="btn btn-primary save-button" style="floar: left;" @onclick="() => SaveConfig()">
+                        Сохранить
+                    </button>
+                </div>
+            </div>
+
+            @if (SavedConfigs.Count > 0)
+            {
+                foreach (var config in SavedConfigs)
+                {
+                    <div class="container-sm w-100 p-2 pb-3 mt-3 app-font" style="background: #343447; border-radius:15px;">
+                        <div class="card-body">
+                            <span class=""><b>ТФ:</b> @config.TimeFrame</span>
+                            <br>
+                            <span class=""><b>Кол-во свечей:</b> @config.CandlesCount</span>
+                            <br>
+                            <span class=""><b>Отступ от мин.:</b> @config.OffsetMinimal %</span>
+                            <br>
+                            <span class=""><b>Риск на сделку:</b> @config.Risk $</span>
+                            <br>
+                            <span class=""><b>Коэф. риска: </b>@config.RiskRatio</span>
+                        </div>
+                        <div class="card-header h4 d-flex justify-content-between align-items-center">
+                            <button class="nav-link text-white btn btn-danger px-3" style="border-radius: 5px; font-weight: 600;" @onclick="() => DeleteConfig(config.Id, config.Name)">Удалить</button>
+                        </div>
+                    </div>
+                }
+            }
+
+        </Authorized>
+    </AuthorizeView>
 
     <style>
         .save-button {
@@ -118,8 +124,6 @@ else
             color: #c8c8c7;
         }
     </style>
-
-
 }
 
 

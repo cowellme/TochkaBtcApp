@@ -18,6 +18,7 @@ public class ApplicationContext : DbContext
     
     public DbSet<AppUser> Users { get; set; }
     public DbSet<Config> Configs { get; set; }
+    public DbSet<Signal> Signals { get; set; }
     public DbSet<Error> Errors { get; set; }
 
 

@@ -1,21 +1,27 @@
-﻿using BingX.Net.Clients;
+﻿using System.Diagnostics;
+using BingX.Net.Clients;
 using BingX.Net.Enums;
 using BingX.Net.Objects.Models;
+using BitUnixApi;
+using BitUnixApi.Enums;
 using CryptoExchange.Net.Authentication;
 using Microsoft.AspNetCore.DataProtection;
+using System.Globalization;
+using Telegram.Bot.Types;
 using TochkaBtcApp.Components;
 using TochkaBtcApp.Contollers;
 using TochkaBtcApp.Telegram;
 
 namespace TochkaBtcApp.Models.Exc
 {
-    public class BingX 
+    public class BingX : IExchange
     {
         private static string _exchangeName = "bingx";
         private static string _sideDefault = "LONG";
         private static string _symbolDefault = "BTC-USDT";
         private static List<Order> _orders = new List<Order>();
         private static List<AppUser> _users = new List<AppUser>();
+        private IExchange _exchangeImplementation;
 
         private static BingXRestClient? GetClient(AppUser user)
         {
@@ -38,11 +44,12 @@ namespace TochkaBtcApp.Models.Exc
             var allValues = Enum.GetValues(typeof(KlineInterval)).Cast<KlineInterval>().ToList();
             return allValues.FirstOrDefault(x => (int)x == (int)interval);
         }
-        private static decimal GetLastPrice(BingXRestClient client, string symbol)
+        private static async Task<decimal> GetLastPrice(BingXRestClient client, string symbol)
         {
             try
             {
-                var price = client.PerpetualFuturesApi.ExchangeData.GetTickerAsync(symbol).Result.Data.LastPrice;
+                var response = await client.PerpetualFuturesApi.ExchangeData.GetTickerAsync(symbol);
+                var price = response.Data.LastPrice;
                 return price;
             }
             catch (Exception e)
@@ -51,14 +58,15 @@ namespace TochkaBtcApp.Models.Exc
                 return -1;
             }
         }
-        private static decimal CalculateStopLoss(BingXRestClient client, KlineInterval interval, decimal openPrice, int candlesCount, decimal offsetMinimal, string side)
+        private static decimal CalculateStopLoss(BingXRestClient client, KlineInterval interval, decimal openPrice,
+            int candlesCount, decimal offsetMinimal, string side, string symbol)
         {
             var response = 0m;
 
             switch (side)
             {
                 case "LONG":
-                    var minPrice = GetMinimalPriceForCandles(client, interval, candlesCount);
+                    var minPrice = GetMinimalPriceForCandles(client, interval, candlesCount, symbol);
                     if (minPrice > 0)
                     {
                         response = Math.Abs(openPrice - minPrice) + minPrice * offsetMinimal;
@@ -91,11 +99,12 @@ namespace TochkaBtcApp.Models.Exc
 
             return response;
         }
-        private static decimal GetMinimalPriceForCandles(BingXRestClient client, KlineInterval interval, int candlesCount)
+        private static decimal GetMinimalPriceForCandles(BingXRestClient client, KlineInterval interval,
+            int candlesCount, string symbol)
         {
             var response = .0m;
 
-            var listCandles = GetLastCandles(client, _symbolDefault, interval, candlesCount);
+            var listCandles = GetLastCandles(client, symbol, interval, candlesCount);
 
             var min = listCandles?.MinBy(x => x.LowPrice)?.LowPrice;
 
@@ -124,69 +133,92 @@ namespace TochkaBtcApp.Models.Exc
                 return null;
             }
         }
-        public static decimal CalculateTakeProfit(decimal openPrice, decimal stopLoss, decimal riskRatio, string side)
+        public static decimal CalculateTakeProfit(decimal openPrice, decimal stopLoss, decimal riskRatio, PositionSide side)
         {
             var response = .0m;
 
             switch (side)
             {
-                case "LONG":
+                case PositionSide.Long:
                     response = (openPrice - (openPrice - stopLoss)) * riskRatio + openPrice;
                     break;
 
-                case "SHORT":
+                case PositionSide.Short:
                     response = (openPrice - (openPrice + stopLoss)) * riskRatio + openPrice;
                     break;
             }
 
             return response;
         }
-        public void GetSignal(GlobalKlineInterval globalInterval)
+        public async Task<string> GetSignal(GlobalKlineInterval globalInterval)
         {
             try
             {
-                var configs = ApplicationContext.GetConfigs();
-                var users = ApplicationContext.GetUsers();
-
-                if (configs == null) return;
-                if (users == null) return;
-
-                foreach (var config in configs)
+                await Task.Run(() =>
                 {
-                    if (config.TimeFrame == globalInterval.ToString())
+                    var configs = ApplicationContext.GetConfigs();
+                    var users = ApplicationContext.GetUsers();
+
+                    if (configs == null) return;
+                    if (users == null) return;
+
+                    foreach (var config in configs)
                     {
-                        var name = config.Name;
-                        var user = users.FirstOrDefault(x => x.Name == name);
-
-                        if (user != null)
+                        if (config.TimeFrame == globalInterval.ToString())
                         {
-                            var api = user.ApiBingx;
-                            var secret = user.SecretBingx;
+                            var name = config.Name;
+                            var user = users.FirstOrDefault(x => x.Name == name);
 
-                            if (string.IsNullOrEmpty(api) && string.IsNullOrEmpty(secret)) continue;
+                            if (user != null)
+                            {
+                                var api = user.ApiBingx;
+                                var secret = user.SecretBingx;
 
-                            var interval = ConvertToLocalKline(globalInterval);
-                            Buy(user, interval, config);
+                                if (string.IsNullOrEmpty(api) && string.IsNullOrEmpty(secret)) continue;
+
+                                var interval = ConvertToLocalKline(globalInterval);
+                                Buy(user, interval, config);
+                            }
                         }
                     }
-                }
+                });
+                return "";
             }
             catch (Exception e)
             {
                 Error.Log(e);
+                return e.Message;
             }
         }
-        private static (decimal stopLossPrice, decimal takeProfitPrice, decimal quantity) Calculated(BingXRestClient client, KlineInterval interval, Config config, decimal price)
+        public async Task<List<Pair>?> GetAllPairs()
+        {
+            var client = new BingXRestClient();
+            var response = await client.PerpetualFuturesApi.ExchangeData.GetTickersAsync();
+            var pairs = new List<Pair>();
+            var data = response.Data.ToList();
+            foreach (var pair in data)
+            {
+                pairs.Add(new Pair
+                {
+                    symbol = pair.Symbol
+                });
+            }
+
+            return pairs;
+        }
+        private static (decimal stopLossPrice, decimal takeProfitPrice, decimal quantity) Calculated(
+            BingXRestClient client, KlineInterval interval, Config config, decimal price, PositionSide side = PositionSide.Long,
+            string symbol = "BTC-USDT")
         {
 
-            var stopLoss = CalculateStopLoss(client, interval, price, config.CandlesCount, (decimal)config.OffsetMinimal / 100, _sideDefault);
+            var stopLoss = CalculateStopLoss(client, interval, price, config.CandlesCount, (decimal)config.OffsetMinimal / 100, _sideDefault, symbol);
 
-            var takeProfitPrice = CalculateTakeProfit(price, stopLoss, (decimal)config.RiskRatio, _sideDefault);
+            var takeProfitPrice = CalculateTakeProfit(price, stopLoss, (decimal)config.RiskRatio, side);
             var stopLossPrice = price - stopLoss;
             takeProfitPrice = Math.Round(takeProfitPrice, 2);
             stopLossPrice = Math.Round(stopLossPrice, 2);
             var volume = (decimal)config.Risk / (Math.Abs(stopLossPrice - price) / price);
-            var qty = GetQuantity(client, _symbolDefault, volume);
+            var qty = GetQuantity(client, symbol, volume);
             var response = (stopLossPrice, takeProfitPrice, qty);
             return response;
         }
@@ -262,7 +294,7 @@ namespace TochkaBtcApp.Models.Exc
                 var client = GetClient(user);
                 if (client == null) return;
 
-                var price = GetLastPrice(client, _symbolDefault);
+                var price = GetLastPrice(client, _symbolDefault).Result;
 
                 if (price > 0)
                 {
@@ -332,7 +364,6 @@ namespace TochkaBtcApp.Models.Exc
                 Error.Log(e);
             }
         }
-
         public static decimal GetBalance(string api, string secret)
         {
             var client = new BingXRestClient();
@@ -346,7 +377,6 @@ namespace TochkaBtcApp.Models.Exc
 
             return -1;
         }
-
         public static async Task<List<BingXPosition>?> GetPositions(string api, string secret, string symbol = "BTC-USDT")
         {
             return await Task.Run(() =>
@@ -374,6 +404,151 @@ namespace TochkaBtcApp.Models.Exc
                 }
             });
             
+        }
+        public async Task<string?> BuyHSignal(AppUser user, hSignal signal)
+        {
+            try
+            {
+                var config = signal.Config;
+                config.TimeFrame = signal.TimeFrame;
+                var order = await BuyH(user, signal);
+                return order;
+            }
+            catch (Exception e)
+            {
+                Error.Log(e);
+                return e.Message;
+            }
+        }
+        private async Task<string?> BuyH(AppUser user, hSignal signal)
+        {
+            try
+            {
+                string symbol = signal.Symbol;
+                var client = GetClient(user);
+                if (client == null) throw new Exception("Error API");
+
+                var price = await GetLastPrice(client, symbol);
+                if (price < 0) throw new Exception("Price is not found");
+
+
+                var side = signal.Side.ToLower() == "long" ? PositionSide.Long : PositionSide.Short;
+                var unside = side == PositionSide.Long ? PositionSide.Short : PositionSide.Long;
+                var config = signal.Config;
+                var interval = ParseInterval(signal.TimeFrame);
+                var calculated = Calculated(client, interval, config, price, side, symbol);
+                
+
+
+                var buyOrder = client.PerpetualFuturesApi.Trading.PlaceOrderAsync(
+                    symbol,
+                    OrderSide.Buy,
+                    FuturesOrderType.Market,
+                    side,
+                    calculated.quantity
+                ).Result;
+
+                if (buyOrder.Success)
+                {
+                    
+                    var takeProfitOrder = client.PerpetualFuturesApi.Trading.PlaceOrderAsync(
+                        symbol,
+                        OrderSide.Sell,
+                        FuturesOrderType.StopMarket,
+                        unside,
+                        calculated.quantity,
+                        stopPrice: calculated.stopLossPrice
+                    ).Result;
+
+                    if (takeProfitOrder.Success)
+                    {
+                        var stopLossOrder = client.PerpetualFuturesApi.Trading.PlaceOrderAsync(
+                            symbol,
+                            OrderSide.Sell,
+                            FuturesOrderType.TakeProfitMarket,
+                            unside,
+                            calculated.quantity,
+                            stopPrice: calculated.takeProfitPrice
+                        ).Result;
+
+                        if (stopLossOrder.Success)
+                        {
+                            user.SendAlert($"{side.ToString()} {symbol}\n" +
+                                                 $"Take: $ {calculated.takeProfitPrice:0.00}\n" +
+                                                 $"Open: $ {price:0.00}\n" +
+                                                 $"Stop: $ {calculated.stopLossPrice:0.00}");
+                            var e = new Exception($"Сделка открыта!\n\n {DateTime.Now:s}");
+                            TBot.LogError(e, user);
+                            return "success";
+                        }
+                        else
+                        {
+                            var e = new Exception(stopLossOrder.Error?.Message);
+                            TBot.LogError(e, user);
+                            Error.Log(e);
+                        }
+                    }
+                    else
+                    {
+                        var e = new Exception(takeProfitOrder.Error?.Message);
+                        TBot.LogError(e, user);
+                        Error.Log(e);
+                    }
+                }
+                else
+                {
+                    var e = new Exception(buyOrder.Error?.Message);
+                    TBot.LogError(e, user);
+                    Error.Log(e);
+                }
+
+
+                return "";
+            }
+            catch (Exception e)
+            {
+                e.Source = "418:1 OrderByConfig";
+                Error.Log(e);
+                return null;
+            }
+        }
+        private KlineInterval ParseInterval(string signalTimeFrame)
+        {
+            switch (signalTimeFrame)
+            {
+                case "OneMinute":
+                    return KlineInterval.OneMinute;
+                case "ThreeMinutes":
+                    return KlineInterval.ThreeMinutes;
+                case "FiveMinutes":
+                    return KlineInterval.FiveMinutes;
+                case "FifteenMinutes":
+                    return KlineInterval.FifteenMinutes;
+                case "ThirtyMinutes":
+                    return KlineInterval.ThirtyMinutes;
+                case "OneHour":
+                    return KlineInterval.OneHour;
+                case "TwoHours":
+                    return KlineInterval.TwoHours;
+                case "FourHours":
+                    return KlineInterval.FourHours;
+                case "SixHours":
+                    return KlineInterval.SixHours;
+                case "EightHours":
+                    return KlineInterval.EightHours;
+                case "TwelveHours":
+                    return KlineInterval.TwelveHours;
+                case "OneDay":
+                    return KlineInterval.OneDay;
+                case "ThreeDay":
+                    return KlineInterval.ThreeDay;
+                case "OneWeek":
+                    return KlineInterval.OneWeek;
+                case "OneMonth":
+                    return KlineInterval.OneMonth;
+                default:
+                    return KlineInterval.FiveMinutes;
+            }
         }
     }
 }

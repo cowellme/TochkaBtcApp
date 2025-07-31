@@ -123,7 +123,11 @@ public class BiyUnix
 
                         if (stopLossOrder.Success)
                         {
-                            
+                            user.SendAlert($"{OrderSide.Buy} {_symbolDefault}\n" +
+                                           $"Take: $ {takeProfitPrice:0.00}\n" +
+                                           $"Open: $ {price:0.00}\n" +
+                                           $"Stop: $ {stopLossPrice:0.00}" +
+                                           $"Volume: {(qty * price):0.0000}");
                         }
                         else
                         {

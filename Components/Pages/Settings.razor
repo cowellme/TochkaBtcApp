@@ -17,7 +17,15 @@
             if (!TelegramId)
             {
                 <div class="container-sm w-100 mt-3 p-0">
-                    <a class=" nav-link text-white btn app-font m-0 pb-3 pt-3" href="https://t.me/OrganizeParty_bot" style="background: #0088CC; border-radius: 16px; w font-weight: 600;">
+                    <a class=" nav-link text-white btn app-font m-0 pb-3 pt-3" href="@TelegramRef" target="_blank" style="background: #0088CC; border-radius: 16px; w font-weight: 600;">
+                        Telegram Bot
+                    </a>
+                </div>
+            }
+            else
+            {
+                <div class="container-sm w-100 mt-3 p-0">
+                    <a class=" nav-link text-white btn app-font m-0 pb-3 pt-3" href="https://t.me/TochkaBtcbot" target="_blank" style="background: #0088CC; border-radius: 16px; w font-weight: 600;">
                         Telegram Bot
                     </a>
                 </div>
@@ -213,7 +221,7 @@
 
         if (ath.User.Identity != null)
         {
-            using var ctx = new ApplicationContext();
+            await using var ctx = new ApplicationContext();
             var user = ctx.Users.FirstOrDefault(x => x.Name == ath.User.Identity.Name);
             if (user != null)
             {
@@ -227,6 +235,7 @@
                 SecretBitUnix = user.SecretBitUnix;
 
                 TelegramId = user.IsTelegram;
+                TelegramRef = $"https://t.me/TochkaBtcbot?start={user.Hash}";
                 _positions = Binance.GetPositionsHistory(user);
                 if (_positions != null)
                 {
@@ -280,7 +289,7 @@
     private string? ApiBitUnix { get; set; }
     private string? SecretBitUnix { get; set; }
     private bool TelegramId { get; set; }
-
+    private string TelegramRef = @"https://t.me/TochkaBtcbot?start=";
     private void ToggleBinanceVisibility()
     {
         isBinanceVisible = !isBinanceVisible;
